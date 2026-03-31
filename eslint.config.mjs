@@ -16,6 +16,7 @@ export default defineConfig([
       'simple-import-sort': simpleImportSort,
     },
     rules: {
+      'simple-import-sort/exports': 'error',
       'simple-import-sort/imports': [
         'error',
         {
@@ -31,7 +32,6 @@ export default defineConfig([
       ],
       curly: ['error', 'multi'],
       'func-style': ['error', 'expression'],
-      'simple-import-sort/exports': 'error',
     },
   },
 ])
