@@ -6,8 +6,10 @@ import {
   resolveTransportPolicy,
   transportPolicySchema,
 } from '../../internal/chains.js'
+import type { EIP1193Provider } from '../../internal/client.js'
 import {
   createClient,
+  prepareAndProviderSign,
   prepareAndSign,
   submitCalls,
 } from '../../internal/client.js'
@@ -20,6 +22,7 @@ export type StakeParameters = {
   feeToken?: Address | undefined
   mode?: 'push' | 'pull' | undefined
   permitDeadlineSeconds?: number | undefined
+  provider?: EIP1193Provider | undefined
   transportPolicy?: 'auto' | 'permit' | 'legacy' | undefined
 } & Account.GetResolverParameters
 
@@ -86,7 +89,11 @@ export const stake = (parameters: StakeParameters = {}) => {
         })
       }
 
-      const signature = await prepareAndSign(client, account, calls, feeToken)
+      const provider = parameters.provider
+      const signature =
+        provider && calls.length === 1
+          ? await prepareAndProviderSign(client, account, calls[0]!, provider)
+          : await prepareAndSign(client, account, calls, feeToken)
       return Credential.serialize({
         challenge,
         payload: { signature, type: 'transaction' },

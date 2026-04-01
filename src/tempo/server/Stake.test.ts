@@ -1,7 +1,9 @@
 import { PaymentRequest } from 'mppx'
 import type { Address, Hex, TransactionReceipt } from 'viem'
+import { encodeFunctionData } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { GitBondEscrowAbi } from '../../abi/GitBondEscrow.js'
 import { buildLegacyCalls } from '../../internal/tx.js'
 import * as Methods from '../Methods.js'
 import { stake } from './Stake.js'
@@ -36,6 +38,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(() => ({})),
   getTransactionReceipt: vi.fn(),
   isTempoTransaction: vi.fn(() => true),
+  parseTransaction: vi.fn(),
   submitRawSync: vi.fn(),
   transactionDeserialize: vi.fn(),
 }))
@@ -56,6 +59,11 @@ vi.mock('../../internal/tx.js', async importOriginal => ({
 vi.mock('viem/actions', async importOriginal => ({
   ...(await importOriginal<typeof import('viem/actions')>()),
   getTransactionReceipt: mocks.getTransactionReceipt,
+}))
+
+vi.mock('viem', async importOriginal => ({
+  ...(await importOriginal<typeof import('viem')>()),
+  parseTransaction: mocks.parseTransaction,
 }))
 
 vi.mock('viem/tempo', () => ({
@@ -235,18 +243,81 @@ describe('tempo server stake', () => {
         expect(mocks.cosignWithFeePayer).not.toHaveBeenCalled()
       })
 
-      it('rejects non-Tempo transactions', async () => {
+      it('accepts standard transactions for single-call permit flow', async () => {
+        const standardTx = '0x02aabbcc' as Hex
+        const permitCallData = encodeFunctionData({
+          abi: GitBondEscrowAbi,
+          args: [
+            stakeKey,
+            payer,
+            counterparty,
+            beneficiary,
+            currency,
+            5_000_000n,
+            {
+              deadline: 0n,
+              r: ('0x' + '00'.repeat(32)) as Hex,
+              s: ('0x' + '00'.repeat(32)) as Hex,
+              v: 27,
+            },
+          ],
+          functionName: 'createEscrowWithPermit',
+        })
+
         mocks.isTempoTransaction.mockReturnValue(false)
+        mocks.parseTransaction.mockReturnValue({
+          data: permitCallData,
+          to: contract,
+        })
+        mocks.submitRawSync.mockResolvedValue(mockReceipt)
 
         const method = stake({ chainId, contract, currency })
         const credential = makeCredential({
-          signature: serializedTx,
+          signature: standardTx,
+          type: 'transaction',
+        })
+
+        const result = await method.verify({
+          credential,
+          request: rawInput,
+        })
+
+        expect(result).toEqual({
+          method: 'tempo',
+          reference: txHash,
+          status: 'success',
+          timestamp: expect.any(String),
+        })
+        expect(mocks.parseTransaction).toHaveBeenCalledWith(standardTx)
+        expect(mocks.submitRawSync).toHaveBeenCalledOnce()
+        expect(mocks.cosignWithFeePayer).not.toHaveBeenCalled()
+      })
+
+      it('rejects standard transactions when feePayer is configured', async () => {
+        mocks.isTempoTransaction.mockReturnValue(false)
+        mocks.parseTransaction.mockReturnValue({
+          data: legacyCalls[0]!.data,
+          to: legacyCalls[0]!.to,
+        })
+
+        const feePayerAccount = {
+          address: '0x5555555555555555555555555555555555555555',
+          type: 'local',
+        }
+        const method = stake({
+          chainId,
+          contract,
+          currency,
+          feePayer: feePayerAccount as never,
+        })
+        const credential = makeCredential({
+          signature: '0x02aabbcc' as Hex,
           type: 'transaction',
         })
 
         await expect(
           method.verify({ credential, request: rawInput }),
-        ).rejects.toThrow(/only tempo transactions/i)
+        ).rejects.toThrow(/fee payer.*requires.*tempo batch/i)
       })
 
       it('rejects unsigned transactions', async () => {

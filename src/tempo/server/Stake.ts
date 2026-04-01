@@ -1,6 +1,6 @@
 import { Method, PaymentRequest } from 'mppx'
 import type { Account as ViemAccount, Address, Hex } from 'viem'
-import { isAddressEqual } from 'viem'
+import { isAddressEqual, parseTransaction } from 'viem'
 import { getTransactionReceipt } from 'viem/actions'
 import { Transaction } from 'viem/tempo'
 
@@ -98,37 +98,56 @@ export const stake = <const parameters extends StakeParameters>(
         const serializedTransaction = getSerializedTransaction(
           credential.payload,
         )
-        if (!isTempoTransaction(serializedTransaction))
-          throw new Error(
-            'Only Tempo transactions are supported for tempo.stake.',
+
+        if (isTempoTransaction(serializedTransaction)) {
+          const transaction = Transaction.deserialize(
+            serializedTransaction as Transaction.TransactionSerializedTempo,
           )
-
-        const transaction = Transaction.deserialize(
-          serializedTransaction as Transaction.TransactionSerializedTempo,
-        )
-        if (!transaction.signature || !transaction.from)
-          throw new Error(
-            'tempo.stake transactions must be signed by the payer first.',
-          )
-
-        matchStakeCalls({
-          beneficiary,
-          calls: transaction.calls ?? [],
-          challenge: challengeRequest,
-          payer,
-        })
-
-        const feeToken = transaction.feeToken as Address | undefined
-        const finalTransaction = feePayer
-          ? await cosignWithFeePayer(
-              client,
-              serializedTransaction,
-              feePayer,
-              feeToken,
+          if (!transaction.signature || !transaction.from)
+            throw new Error(
+              'tempo.stake transactions must be signed by the payer first.',
             )
-          : serializedTransaction
 
-        receipt = await submitRawSync(client, finalTransaction)
+          matchStakeCalls({
+            beneficiary,
+            calls: transaction.calls ?? [],
+            challenge: challengeRequest,
+            payer,
+          })
+
+          const feeToken = transaction.feeToken as Address | undefined
+          const finalTransaction = feePayer
+            ? await cosignWithFeePayer(
+                client,
+                serializedTransaction,
+                feePayer,
+                feeToken,
+              )
+            : serializedTransaction
+
+          receipt = await submitRawSync(client, finalTransaction)
+        } else {
+          // Standard EIP-1559 transaction (single-call permit flow).
+          if (feePayer)
+            throw new Error(
+              'Fee payer cosigning requires a Tempo batch transaction.',
+            )
+
+          const transaction = parseTransaction(serializedTransaction)
+          if (!transaction.to || !('data' in transaction) || !transaction.data)
+            throw new Error('Standard transaction missing to or data.')
+
+          matchStakeCalls({
+            beneficiary,
+            calls: [
+              { to: transaction.to as Address, data: transaction.data as Hex },
+            ],
+            challenge: challengeRequest,
+            payer,
+          })
+
+          receipt = await submitRawSync(client, serializedTransaction)
+        }
       }
 
       assertEscrowCreatedReceipt(receipt, receiptParams)

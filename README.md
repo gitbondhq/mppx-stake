@@ -67,8 +67,10 @@ type StakeCredentialPayload =
 ```
 
 - `hash` means the client already submitted the stake transaction.
-- `transaction` means the client signed a Tempo transaction for the server to
-  inspect and optionally submit.
+- `transaction` means the client signed a transaction for the server to inspect
+  and optionally submit. The signed transaction may be either a Tempo batch
+  transaction (`0x76` prefix) or a standard EIP-1559 transaction (`0x02`
+  prefix). See [Embedded Wallet Support](#embedded-wallet-support) for details.
 
 ## Client Integration
 
@@ -96,6 +98,7 @@ Client parameters:
 | --- | --- | --- |
 | `account` | `viem` account or address | Default payer account used to create stake credentials |
 | `mode` | `'push' \| 'pull'` | Whether the client submits the transaction or only signs it |
+| `provider` | `EIP1193Provider` | Optional wallet provider for signing (see [Embedded Wallet Support](#embedded-wallet-support)) |
 | `transportPolicy` | `'auto' \| 'permit' \| 'legacy'` | Controls permit vs approve+createEscrow call construction |
 | `feeToken` | address | Optional fee token forwarded to Tempo transaction submission |
 | `permitDeadlineSeconds` | number | Optional override for permit expiry when using permit flow |
@@ -106,8 +109,11 @@ Client behavior:
   method.
 - `mode: 'push'` submits calls with `sendCallsSync` and returns a credential
   with `payload.type = 'hash'`.
-- `mode: 'pull'` signs a Tempo transaction request and returns a credential with
-  `payload.type = 'transaction'`.
+- `mode: 'pull'` signs a transaction request and returns a credential with
+  `payload.type = 'transaction'`. When a `provider` is given and the transaction
+  is a single call (permit flow), signing uses the provider's
+  `eth_signTransaction`, producing a standard EIP-1559 transaction. Otherwise,
+  signing uses viem's `signTransaction`, producing a Tempo batch transaction.
 - Default mode is account-dependent:
   - `json-rpc` accounts default to `push`
   - all other accounts default to `pull`
@@ -190,11 +196,57 @@ Server behavior:
   - checks for a matching `EscrowCreated` event
   - reads `getEscrow(stakeKey)` and verifies final escrow state
 - If the credential is a signed `transaction`, the server:
-  - confirms it is a Tempo transaction
-  - matches the call sequence against the expected escrow action
-  - optionally applies the fee payer signature
-  - submits the transaction
-  - verifies the receipt and final escrow state
+  - if Tempo batch (`0x76`): deserializes the Tempo transaction, matches the
+    call sequence, optionally cosigns with the fee payer, and submits
+  - if standard EIP-1559 (`0x02`): parses the transaction, extracts `to`/`data`
+    as a single call, validates it, and submits directly (fee payer cosigning is
+    not available for standard transactions)
+  - in both cases: verifies the receipt and final escrow state
+
+## Embedded Wallet Support
+
+Embedded wallets like Privy only support standard EVM transaction types (0, 1,
+2, 4) and cannot sign Tempo's custom batch transaction type (`0x76`).
+Additionally, Tempo's RPC rejects standard EIP-1559 transactions sent via
+`eth_estimateGas` with type `0x2`, and does not allow native value transfers.
+
+To work around this, the client SDK accepts an optional `provider` parameter
+(any EIP-1193 compatible provider, such as Privy's `getEthereumProvider()`).
+When a provider is given and the transaction is a single call (permit flow in
+pull mode), the SDK:
+
+1. Uses viem's `prepareTransactionRequest` with the Tempo client for gas
+   estimation (Tempo's chain hooks handle the RPC format)
+2. Converts the prepared transaction to a plain hex-encoded parameter object
+3. Calls `eth_signTransaction` on the provider, which produces a standard
+   EIP-1559 signed transaction (`0x02` prefix)
+4. Returns the signed transaction as the credential payload
+
+The server accepts both Tempo batch (`0x76`) and standard EIP-1559 (`0x02`)
+transactions in the `transaction` credential type.
+
+Example with Privy:
+
+```ts
+import { Mppx, tempo } from '@gitbondhq/mppx-escrow/client'
+import { toViemAccount } from '@privy-io/react-auth'
+
+const account = await toViemAccount({ wallet: embeddedWallet })
+const provider = await embeddedWallet.getEthereumProvider()
+
+const mppx = Mppx.create({
+  methods: [tempo({ account, provider, mode: 'pull' })],
+  polyfill: false,
+})
+```
+
+Limitations:
+
+- Provider-based signing only works for single-call transactions (permit flow).
+  Multi-call transactions (legacy approve + createEscrow) still require Tempo
+  batch format and a wallet that supports type `0x76`.
+- Fee payer cosigning is not available for standard EIP-1559 transactions. The
+  server will reject standard transactions when a fee payer is configured.
 
 ## ABI Sync
 

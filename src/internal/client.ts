@@ -1,5 +1,5 @@
 import type { Account, Address, Client, Hex, Transport } from 'viem'
-import { createClient as viemCreateClient, http } from 'viem'
+import { createClient as viemCreateClient, http, numberToHex } from 'viem'
 import {
   prepareTransactionRequest,
   sendCallsSync,
@@ -12,6 +12,10 @@ import { withFeePayer } from 'viem/tempo'
 import { chains } from './chains.js'
 
 export type TempoClient = Client<Transport, (typeof chains)[number]>
+
+export type EIP1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+}
 
 export const createClient = (parameters: {
   chainId?: number | undefined
@@ -63,6 +67,22 @@ type PrepareCallsFn = (
   },
 ) => Promise<{ gas?: bigint | undefined }>
 
+type PrepareSingleCallFn = (
+  client: TempoClient,
+  params: {
+    account: Account
+    data: Hex
+    to: Address
+    value: bigint
+  },
+) => Promise<{
+  chainId?: number | undefined
+  gas?: bigint | undefined
+  maxFeePerGas?: bigint | undefined
+  maxPriorityFeePerGas?: bigint | undefined
+  nonce?: number | undefined
+}>
+
 type SignPreparedFn = (
   client: TempoClient,
   params: { gas?: bigint | undefined },
@@ -81,6 +101,8 @@ type SubmitRawSyncFn = (
 const submitCallsAction = sendCallsSync as unknown as SubmitCallsFn
 const prepareCallsAction =
   prepareTransactionRequest as unknown as PrepareCallsFn
+const prepareSingleCallAction =
+  prepareTransactionRequest as unknown as PrepareSingleCallFn
 const signPreparedAction = signTransaction as unknown as SignPreparedFn
 const cosignAction = signTransaction as unknown as CosignFn
 const submitRawSyncAction = sendRawTransactionSync as unknown as SubmitRawSyncFn
@@ -116,6 +138,46 @@ export const prepareAndSign = async (
   })
   if (prepared.gas) prepared.gas += 5_000n
   return signPreparedAction(client, prepared)
+}
+
+// Signs a single-call transaction via an EIP-1193 provider (e.g. Privy).
+// Uses eth_signTransaction which produces a standard EIP-1559 (type 2)
+// envelope, bypassing Tempo's custom 0x76 serialization that embedded
+// wallets don't support.
+export const prepareAndProviderSign = async (
+  client: TempoClient,
+  account: Account,
+  call: Call,
+  provider: EIP1193Provider,
+): Promise<Hex> => {
+  const prepared = await prepareSingleCallAction(client, {
+    account,
+    to: call.to,
+    data: call.data,
+    value: 0n,
+  })
+  if (prepared.gas) prepared.gas += 5_000n
+
+  const txParams = {
+    from: account.address,
+    to: call.to,
+    data: call.data,
+    value: '0x0',
+    gas: prepared.gas ? numberToHex(prepared.gas) : undefined,
+    maxFeePerGas: prepared.maxFeePerGas
+      ? numberToHex(prepared.maxFeePerGas)
+      : undefined,
+    maxPriorityFeePerGas: prepared.maxPriorityFeePerGas
+      ? numberToHex(prepared.maxPriorityFeePerGas)
+      : '0x0',
+    chainId: prepared.chainId ? numberToHex(prepared.chainId) : undefined,
+    nonce: prepared.nonce != null ? numberToHex(prepared.nonce) : undefined,
+  }
+
+  return (await provider.request({
+    method: 'eth_signTransaction',
+    params: [txParams],
+  })) as Hex
 }
 
 export const cosignWithFeePayer = async (
