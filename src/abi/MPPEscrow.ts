@@ -2,7 +2,7 @@
 // Source commit: 680b1adca204580bf12502b9e93e64fa598f00e1
 import type { Abi } from 'viem'
 
-export const GitBondEscrowAbi = [
+export const MPPEscrowAbi = [
   {
     type: 'constructor',
     inputs: [],

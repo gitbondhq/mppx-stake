@@ -36,7 +36,8 @@
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "build": "tsc -p tsconfig.json",
+    "generate:abi": "forge build --root ../.. && node scripts/generate-abi.mjs",
+    "build": "npm run generate:abi && tsc -p tsconfig.json",
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
     "fix": "eslint . --fix && tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

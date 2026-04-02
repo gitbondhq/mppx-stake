@@ -15,7 +15,7 @@ the client and server can share the same TypeScript implementation of:
 ## Entry Points
 
 - `@gitbondhq/mppx-escrow`
-  Exports all core `mppx` primitives, `Methods.stake`, and `GitBondEscrowAbi`.
+  Exports all core `mppx` primitives, `Methods.stake`, and `MPPEscrowAbi`.
 - `@gitbondhq/mppx-escrow/client`
   Exports `Mppx`, `Transport`, `Expires`, `tempo(...)`, and `stake(...)` for
   browser or client-side integrations.
@@ -25,7 +25,7 @@ the client and server can share the same TypeScript implementation of:
 - `@gitbondhq/mppx-escrow/tempo`
   Exposes the shared `Methods.stake` schema directly.
 - `@gitbondhq/mppx-escrow/abi`
-  Exposes `GitBondEscrowAbi`.
+  Exposes `MPPEscrowAbi`.
 
 ## What `tempo/stake` Means
 
@@ -256,7 +256,7 @@ Limitations:
 
 ## ABI Sync
 
-`GitBondEscrowAbi` is checked into `src/abi/GitBondEscrow.ts`. It is synced
+`MPPEscrowAbi` is checked into `src/abi/MPPEscrow.ts`. It is synced
 automatically via a GitHub Action in the escrow repo when the contract changes.
 
 ## Development
