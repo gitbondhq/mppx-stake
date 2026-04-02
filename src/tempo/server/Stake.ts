@@ -57,7 +57,9 @@ export const stake = <const parameters extends StakeParameters>(
     async request({ request }) {
       const chainId = request.chainId ?? parameters.chainId
       if (!chainId) throw new Error('No chainId configured for tempo.stake.')
-      return { ...request, chainId }
+      const submission =
+        request.submission ?? (feePayer || feePayerUrl ? 'pull' : 'push')
+      return { ...request, chainId, submission }
     },
 
     async verify({ credential, request }) {

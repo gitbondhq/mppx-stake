@@ -20,7 +20,6 @@ import * as Methods from '../Methods.js'
 
 export type StakeParameters = {
   feeToken?: Address | undefined
-  mode?: 'push' | 'pull' | undefined
   permitDeadlineSeconds?: number | undefined
   provider?: EIP1193Provider | undefined
   transportPolicy?: 'auto' | 'permit' | 'legacy' | undefined
@@ -33,7 +32,6 @@ export const stake = (parameters: StakeParameters = {}) => {
     context: z.strictObject({
       account: z.optional(z.custom<Account.GetResolverParameters['account']>()),
       feeToken: z.optional(z.address()),
-      mode: z.optional(z.enum(['push', 'pull'])),
       transportPolicy: z.optional(transportPolicySchema),
     }),
 
@@ -45,10 +43,7 @@ export const stake = (parameters: StakeParameters = {}) => {
       const beneficiary = typed.beneficiary ?? account.address
       const feeToken =
         (context?.feeToken as Address | undefined) ?? parameters.feeToken
-      const mode =
-        context?.mode ??
-        parameters.mode ??
-        (account.type === 'json-rpc' ? 'push' : 'pull')
+      const submission = typed.submission ?? 'push'
       const transportPolicy = resolveTransportPolicy({
         chainId: typed.chainId,
         transportPolicy: context?.transportPolicy ?? parameters.transportPolicy,
@@ -80,7 +75,7 @@ export const stake = (parameters: StakeParameters = {}) => {
 
       const source = `did:pkh:eip155:${typed.chainId}:${account.address}`
 
-      if (mode === 'push') {
+      if (submission === 'push') {
         const hash = await submitCalls(client, account, calls, feeToken)
         return Credential.serialize({
           challenge,
