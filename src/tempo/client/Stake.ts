@@ -2,10 +2,7 @@ import { Credential, Method, z } from 'mppx'
 import type { Address } from 'viem'
 
 import * as Account from '../../internal/account.js'
-import {
-  resolveTransportPolicy,
-  transportPolicySchema,
-} from '../../internal/chains.js'
+import { detectTransportPolicy } from '../../internal/chains.js'
 import type { EIP1193Provider } from '../../internal/client.js'
 import {
   createClient,
@@ -22,7 +19,6 @@ export type StakeParameters = {
   feeToken?: Address | undefined
   permitDeadlineSeconds?: number | undefined
   provider?: EIP1193Provider | undefined
-  transportPolicy?: 'auto' | 'permit' | 'legacy' | undefined
 } & Account.GetResolverParameters
 
 export const stake = (parameters: StakeParameters = {}) => {
@@ -32,7 +28,6 @@ export const stake = (parameters: StakeParameters = {}) => {
     context: z.strictObject({
       account: z.optional(z.custom<Account.GetResolverParameters['account']>()),
       feeToken: z.optional(z.address()),
-      transportPolicy: z.optional(transportPolicySchema),
     }),
 
     async createCredential({ challenge, context }) {
@@ -44,9 +39,11 @@ export const stake = (parameters: StakeParameters = {}) => {
       const feeToken =
         (context?.feeToken as Address | undefined) ?? parameters.feeToken
       const submission = typed.submission ?? 'push'
-      const transportPolicy = resolveTransportPolicy({
+      const transportPolicy = await detectTransportPolicy({
         chainId: typed.chainId,
-        transportPolicy: context?.transportPolicy ?? parameters.transportPolicy,
+        client,
+        currency: typed.currency,
+        owner: account.address,
       })
 
       const calls =

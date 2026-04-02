@@ -99,7 +99,6 @@ Client parameters:
 | --- | --- | --- |
 | `account` | `viem` account or address | Default payer account used to create stake credentials |
 | `provider` | `EIP1193Provider` | Optional wallet provider for signing (see [Embedded Wallet Support](#embedded-wallet-support)) |
-| `transportPolicy` | `'auto' \| 'permit' \| 'legacy'` | Controls permit vs approve+createEscrow call construction |
 | `feeToken` | address | Optional fee token forwarded to Tempo transaction submission |
 | `permitDeadlineSeconds` | number | Optional override for permit expiry when using permit flow |
 
@@ -116,12 +115,10 @@ Client behavior:
   is a single call (permit flow), signing uses the provider's
   `eth_signTransaction`, producing a standard EIP-1559 transaction. Otherwise,
   signing uses viem's `signTransaction`, producing a Tempo batch transaction.
-- `transportPolicy: 'permit'` builds a single `createEscrowWithPermit` call.
-- `transportPolicy: 'legacy'` builds `approve` plus `createEscrow`.
-- `transportPolicy: 'auto'` resolves by chain:
-  - Tempo mainnet: `legacy`
-  - Tempo Moderato: `permit`
-  - other chains: `permit`
+- Transport policy (permit vs legacy) is auto-detected by probing the token's
+  `nonces()` function on-chain. If the token supports EIP-2612 permit, a single
+  `createEscrowWithPermit` call is built. Otherwise, `approve` plus
+  `createEscrow` is used. The result is cached per chain+token pair.
 
 ## Server Integration
 

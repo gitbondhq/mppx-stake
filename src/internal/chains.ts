@@ -1,6 +1,8 @@
-import { z } from 'mppx'
-import type { Chain } from 'viem'
+import type { Address, Chain, Client } from 'viem'
+import { readContract } from 'viem/actions'
 import { tempo, tempoModerato } from 'viem/chains'
+
+import { erc20PermitAbi } from './abi.js'
 
 export type TempoChain = typeof tempo | typeof tempoModerato
 
@@ -9,22 +11,32 @@ export const chains: Record<number, Chain> = {
   [tempoModerato.id]: tempoModerato,
 }
 
-export const transportPolicySchema = z.enum(['auto', 'permit', 'legacy'])
+export type TransportPolicy = 'permit' | 'legacy'
 
-export type TransportPolicy = 'auto' | 'permit' | 'legacy'
-export type ResolvedTransportPolicy = Exclude<TransportPolicy, 'auto'>
+const permitSupportCache = new Map<string, TransportPolicy>()
 
-const defaultTransportPolicyByChainId: Record<number, ResolvedTransportPolicy> =
-  {
-    [tempo.id]: 'legacy',
-    [tempoModerato.id]: 'permit',
-  }
-
-export const resolveTransportPolicy = (parameters: {
+export const detectTransportPolicy = async (parameters: {
   chainId: number
-  transportPolicy?: TransportPolicy | undefined
-}): ResolvedTransportPolicy => {
-  const { chainId, transportPolicy = 'auto' } = parameters
-  if (transportPolicy !== 'auto') return transportPolicy
-  return defaultTransportPolicyByChainId[chainId] ?? 'permit'
+  client: Client
+  currency: Address
+  owner: Address
+}): Promise<TransportPolicy> => {
+  const { chainId, client, currency, owner } = parameters
+  const key = `${chainId}:${currency}`
+  const cached = permitSupportCache.get(key)
+  if (cached) return cached
+
+  try {
+    await readContract(client, {
+      abi: erc20PermitAbi,
+      address: currency,
+      args: [owner],
+      functionName: 'nonces',
+    })
+    permitSupportCache.set(key, 'permit')
+    return 'permit'
+  } catch {
+    permitSupportCache.set(key, 'legacy')
+    return 'legacy'
+  }
 }
