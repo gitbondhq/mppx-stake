@@ -1,7 +1,6 @@
 export { MPPEscrowAbi } from './abi/MPPEscrow.js'
 export * as Methods from './Methods.js'
 export {
-  defaultNetwork,
   getNetworkPreset,
   getNetworkPresetByChainId,
   type NetworkCapabilities,

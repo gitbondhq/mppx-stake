@@ -23,11 +23,6 @@ export type NetworkPreset = {
   id: NetworkId
 }
 
-// Template default: this repo runs on Tempo Moderato out of the box.
-// To switch the sample to another EVM chain, change this selection and then
-// provide that chain's contract and token addresses in app env/config.
-export const defaultNetwork: NetworkId = 'tempoModerato'
-
 export const networkPresets: Record<NetworkId, NetworkPreset> = {
   base: {
     capabilities: {
@@ -67,18 +62,16 @@ export const networkPresets: Record<NetworkId, NetworkPreset> = {
   },
 }
 
-export const getNetworkPreset = (
-  networkId: NetworkId = defaultNetwork,
-): NetworkPreset => networkPresets[networkId]
+/** Returns the preset metadata for a validated network id. */
+export const getNetworkPreset = (networkId: NetworkId): NetworkPreset =>
+  networkPresets[networkId]
 
 /**
- * Resolves the configured network id, falling back to the checked-in template
- * default when no override is provided.
+ * Validates a configured network id supplied by the consuming app.
  */
-export const resolveNetworkId = (value: string | undefined): NetworkId => {
-  if (!value) return defaultNetwork
-
+export const resolveNetworkId = (value: string): NetworkId => {
   const trimmed = value.trim()
+  if (!trimmed) throw new Error('Network id must not be empty.')
   if (trimmed in networkPresets) return trimmed as NetworkId
 
   throw new Error(

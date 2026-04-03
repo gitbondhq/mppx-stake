@@ -76,6 +76,7 @@ const method = stake({
 ## Notes
 
 - The shared method identity is `method="stake"` with `intent="stake"`.
-- The default checked-in network preset is `tempoModerato`.
+- This package only defines supported network presets. The consuming app chooses
+  the active network.
 - Base and Ethereum support come from changing the selected preset, not from
   separate package entry points.

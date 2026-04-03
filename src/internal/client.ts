@@ -9,11 +9,7 @@ import {
 import { Transaction } from 'viem/tempo'
 import { withFeePayer } from 'viem/tempo'
 
-import {
-  defaultNetwork,
-  getNetworkPreset,
-  getNetworkPresetByChainId,
-} from '../networkConfig.js'
+import { getNetworkPresetByChainId } from '../networkConfig.js'
 
 export type EvmClient = Client<Transport, Chain>
 
@@ -22,16 +18,14 @@ export type EIP1193Provider = {
 }
 
 /**
- * Creates a viem client for the selected chain preset. When a fee payer URL is
- * provided and the chain supports it, the client is wrapped with that transport.
+ * Creates a viem client for the selected chain preset. The caller must provide
+ * an explicit chain id; this package does not choose a default network.
  */
 export const createClient = (parameters: {
-  chainId?: number | undefined
+  chainId: number
   feePayerUrl?: string | undefined
 }): EvmClient => {
-  const { feePayerUrl } = parameters
-  const chainId =
-    parameters.chainId ?? getNetworkPreset(defaultNetwork).chain.id
+  const { chainId, feePayerUrl } = parameters
   const preset = getNetworkPresetByChainId(chainId)
   const url = preset.chain.rpcUrls.default.http[0]
   if (!url) throw new Error(`No default RPC URL configured for ${preset.id}.`)
