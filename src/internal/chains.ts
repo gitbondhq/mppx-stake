@@ -1,20 +1,16 @@
-import type { Address, Chain, Client } from 'viem'
+import type { Address, Client } from 'viem'
 import { readContract } from 'viem/actions'
-import { tempo, tempoModerato } from 'viem/chains'
 
-import { erc20PermitAbi } from './abi.js'
-
-export type TempoChain = typeof tempo | typeof tempoModerato
-
-export const chains: Record<number, Chain> = {
-  [tempo.id]: tempo,
-  [tempoModerato.id]: tempoModerato,
-}
+import { erc20PermitAbi } from '../abi/erc20.js'
 
 export type TransportPolicy = 'permit' | 'legacy'
 
 const permitSupportCache = new Map<string, TransportPolicy>()
 
+/**
+ * Detects whether a token supports ERC-2612 permit so the client can choose
+ * between a one-call permit flow and the legacy approve+create flow.
+ */
 export const detectTransportPolicy = async (parameters: {
   chainId: number
   client: Client

@@ -15,6 +15,10 @@ type StakeChallengeRequest = {
   }
 }
 
+/**
+ * Resolves the payer from the credential source DID and applies the contract's
+ * beneficiary fallback rule when the challenge omits an explicit beneficiary.
+ */
 export const resolvePayerAndBeneficiary = (
   request: StakeChallengeRequest,
   source: string | undefined,

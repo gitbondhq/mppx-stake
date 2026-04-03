@@ -1,14 +1,18 @@
 import { Method, z } from 'mppx'
 
-import { baseUnitAmount } from '../internal/request.js'
+import { baseUnitAmount } from './internal/request.js'
 
 const transactionCredentialSchema = z.object({
   signature: z.signature(),
   type: z.literal('transaction'),
 })
 
+/**
+ * Shared `stake/stake` method schema used by both the client and server
+ * adapters in this package.
+ */
 export const stake = Method.from({
-  name: 'tempo',
+  name: 'stake',
   intent: 'stake',
   schema: {
     credential: {

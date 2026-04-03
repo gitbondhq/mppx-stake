@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint'
 
 export default defineConfig([
   prettier,
-  globalIgnores(['/dist/**', '/node_modules/**']),
+  globalIgnores(['dist/**', 'node_modules/**', 'src/abi/MPPEscrow.ts']),
 
   // TypeScript
   ...tseslint.configs.recommended,

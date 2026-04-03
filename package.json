@@ -22,10 +22,6 @@
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"
     },
-    "./tempo": {
-      "types": "./dist/tempo/index.d.ts",
-      "default": "./dist/tempo/index.js"
-    },
     "./abi": {
       "types": "./dist/abi/index.d.ts",
       "default": "./dist/abi/index.js"

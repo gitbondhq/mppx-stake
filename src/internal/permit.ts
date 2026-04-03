@@ -2,7 +2,7 @@ import type { Address, Client } from 'viem'
 import { parseSignature } from 'viem'
 import { readContract, signTypedData } from 'viem/actions'
 
-import { erc20NameAbi, erc20PermitAbi, erc20VersionAbi } from './abi.js'
+import { erc20NameAbi, erc20PermitAbi, erc20VersionAbi } from '../abi/erc20.js'
 import type { Account } from './account.js'
 
 export type CreatePermitParameters = {
@@ -16,6 +16,10 @@ export type CreatePermitParameters = {
   token: Address
 }
 
+/**
+ * Builds the ERC-2612 permit payload consumed by `createEscrowWithPermit`.
+ * This signs token spend authorization, not the escrow intent itself.
+ */
 export const createPermitParams = async (
   parameters: CreatePermitParameters,
 ) => {

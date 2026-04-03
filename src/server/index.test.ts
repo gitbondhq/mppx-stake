@@ -1,13 +1,18 @@
 import { PaymentRequest } from 'mppx'
+import { Mppx, tempo as upstreamTempo } from 'mppx/server'
 import type { Address, Hex, TransactionReceipt } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { MPPEscrowAbi } from '../../abi/MPPEscrow.js'
-import { buildLegacyCalls } from '../../internal/tx.js'
+import { MPPEscrowAbi } from '../abi/MPPEscrow.js'
+import { buildLegacyCalls } from '../internal/tx.js'
 import * as Methods from '../Methods.js'
-import { stake } from './Stake.js'
+import { stake } from './index.js'
 
+const account = privateKeyToAccount(
+  '0x8b3a350cf5c34c9194ca85829b4b6fd2e8f5f10f1f49ffb3874c7f5f7b6b2d44',
+)
 const payer = '0x4444444444444444444444444444444444444444' as Address
 const beneficiary = '0x3333333333333333333333333333333333333333' as Address
 const counterparty = '0x2222222222222222222222222222222222222222' as Address
@@ -43,14 +48,14 @@ const mocks = vi.hoisted(() => ({
   transactionDeserialize: vi.fn(),
 }))
 
-vi.mock('../../internal/client.js', () => ({
+vi.mock('../internal/client.js', () => ({
   createClient: mocks.createClient,
   cosignWithFeePayer: mocks.cosignWithFeePayer,
   submitRawSync: mocks.submitRawSync,
 }))
 
-vi.mock('../../internal/tx.js', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../internal/tx.js')>()),
+vi.mock('../internal/tx.js', async importOriginal => ({
+  ...(await importOriginal<typeof import('../internal/tx.js')>()),
   assertEscrowCreatedReceipt: mocks.assertEscrowCreatedReceipt,
   assertEscrowOnChain: mocks.assertEscrowOnChain,
   isTempoTransaction: mocks.isTempoTransaction,
@@ -84,7 +89,7 @@ const makeCredential = (
   challenge: {
     id: 'test-challenge-id',
     intent: 'stake' as const,
-    method: 'tempo' as const,
+    method: 'stake' as const,
     realm: 'test.example.com',
     request: challengeRequest,
   },
@@ -92,7 +97,34 @@ const makeCredential = (
   source: `did:pkh:eip155:${chainId}:${payer}`,
 })
 
-describe('tempo server stake', () => {
+describe('server stake exports', () => {
+  it('composes with an existing method set', () => {
+    const methods = [...upstreamTempo({ account }), stake({})] as const
+
+    expect(methods).toHaveLength(3)
+    expect(methods[0].intent).toBe('charge')
+    expect(methods[1].intent).toBe('session')
+    expect(methods[2].intent).toBe('stake')
+  })
+
+  it('exposes the standalone stake server method', () => {
+    const method = stake({})
+    expect(method.name).toBe('stake')
+    expect(method.intent).toBe('stake')
+  })
+
+  it('wires stake into Mppx.create()', () => {
+    const mppx = Mppx.create({
+      methods: [[...upstreamTempo({ account }), stake({})] as const],
+      secretKey: 'test-secret',
+    })
+
+    expect(typeof mppx.stake).toBe('function')
+    expect(typeof mppx['stake/stake']).toBe('function')
+  })
+})
+
+describe('server stake verification', () => {
   it('keeps route defaults limited to shared request fields', () => {
     const method = stake({
       beneficiary,
@@ -126,7 +158,7 @@ describe('tempo server stake', () => {
         const result = await method.verify({ credential, request: rawInput })
 
         expect(result).toEqual({
-          method: 'tempo',
+          method: 'stake',
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -165,7 +197,7 @@ describe('tempo server stake', () => {
         const result = await method.verify({ credential, request: rawInput })
 
         expect(result).toEqual({
-          method: 'tempo',
+          method: 'stake',
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -283,7 +315,7 @@ describe('tempo server stake', () => {
         })
 
         expect(result).toEqual({
-          method: 'tempo',
+          method: 'stake',
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -351,7 +383,7 @@ describe('tempo server stake', () => {
         challenge: {
           id: 'test-id',
           intent: 'stake' as const,
-          method: 'tempo' as const,
+          method: 'stake' as const,
           realm: 'test.example.com',
           request: mismatchedRequest,
         },

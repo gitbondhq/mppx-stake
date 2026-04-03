@@ -1,4 +1,4 @@
-import type { Account, Address, Client, Hex, Transport } from 'viem'
+import type { Account, Address, Chain, Client, Hex, Transport } from 'viem'
 import { createClient as viemCreateClient, http, numberToHex } from 'viem'
 import {
   prepareTransactionRequest,
@@ -9,29 +9,40 @@ import {
 import { Transaction } from 'viem/tempo'
 import { withFeePayer } from 'viem/tempo'
 
-import { chains } from './chains.js'
+import {
+  defaultNetwork,
+  getNetworkPreset,
+  getNetworkPresetByChainId,
+} from '../networkConfig.js'
 
-export type TempoClient = Client<Transport, (typeof chains)[number]>
+export type EvmClient = Client<Transport, Chain>
 
 export type EIP1193Provider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
 }
 
+/**
+ * Creates a viem client for the selected chain preset. When a fee payer URL is
+ * provided and the chain supports it, the client is wrapped with that transport.
+ */
 export const createClient = (parameters: {
   chainId?: number | undefined
   feePayerUrl?: string | undefined
-}): TempoClient => {
+}): EvmClient => {
   const { feePayerUrl } = parameters
-  const chainId = parameters.chainId ?? 42431
-  const chain = chains[chainId]
-  if (!chain) throw new Error(`No chain configured for chainId ${chainId}.`)
-  const url = chain.rpcUrls.default.http[0]!
+  const chainId =
+    parameters.chainId ?? getNetworkPreset(defaultNetwork).chain.id
+  const preset = getNetworkPresetByChainId(chainId)
+  const url = preset.chain.rpcUrls.default.http[0]
+  if (!url) throw new Error(`No default RPC URL configured for ${preset.id}.`)
   return viemCreateClient({
-    chain,
+    chain: preset.chain,
     transport: feePayerUrl
-      ? withFeePayer(http(url), http(feePayerUrl))
+      ? preset.capabilities.supportsFeePayer
+        ? withFeePayer(http(url), http(feePayerUrl))
+        : http(url)
       : http(url),
-  }) as TempoClient
+  }) as EvmClient
 }
 
 export type Call = { to: Address; data: Hex }
@@ -46,7 +57,7 @@ export type Call = { to: Address; data: Hex }
 // in one place.
 
 type SubmitCallsFn = (
-  client: TempoClient,
+  client: EvmClient,
   params: {
     account: Account
     calls: readonly Call[]
@@ -58,43 +69,48 @@ type SubmitCallsFn = (
 }>
 
 type PrepareCallsFn = (
-  client: TempoClient,
+  client: EvmClient,
   params: {
     account: Account
     calls: readonly Call[]
     feeToken?: Address
     nonceKey?: string
   },
-) => Promise<{ gas?: bigint | undefined }>
+) => Promise<PreparedTransaction>
 
 type PrepareSingleCallFn = (
-  client: TempoClient,
+  client: EvmClient,
   params: {
     account: Account
     data: Hex
     to: Address
     value: bigint
   },
-) => Promise<{
-  chainId?: number | undefined
+) => Promise<PreparedSingleCallTransaction>
+
+type PreparedTransaction = Record<string, unknown> & {
   gas?: bigint | undefined
+}
+
+type PreparedSingleCallTransaction = PreparedTransaction & {
+  chainId?: number | undefined
   maxFeePerGas?: bigint | undefined
   maxPriorityFeePerGas?: bigint | undefined
   nonce?: number | undefined
-}>
+}
 
 type SignPreparedFn = (
-  client: TempoClient,
-  params: { gas?: bigint | undefined },
+  client: EvmClient,
+  params: PreparedTransaction,
 ) => Promise<Hex>
 
 type CosignFn = (
-  client: TempoClient,
+  client: EvmClient,
   params: Record<string, unknown>,
 ) => Promise<Hex>
 
 type SubmitRawSyncFn = (
-  client: TempoClient,
+  client: EvmClient,
   params: { serializedTransaction: Hex },
 ) => Promise<import('viem').TransactionReceipt>
 
@@ -107,12 +123,65 @@ const signPreparedAction = signTransaction as unknown as SignPreparedFn
 const cosignAction = signTransaction as unknown as CosignFn
 const submitRawSyncAction = sendRawTransactionSync as unknown as SubmitRawSyncFn
 
+const getClientNetwork = (client: EvmClient) => {
+  const chainId = client.chain?.id
+  if (!chainId) throw new Error('Client is missing chain configuration.')
+  return getNetworkPresetByChainId(chainId)
+}
+
+/**
+ * Prepares and signs a single normal EVM transaction. This is the fallback
+ * path used on chains without Tempo batch call support.
+ */
+const prepareAndSignSingleCall = async (
+  client: EvmClient,
+  account: Account,
+  call: Call,
+): Promise<Hex> => {
+  const prepared = await prepareSingleCallAction(client, {
+    account,
+    to: call.to,
+    data: call.data,
+    value: 0n,
+  })
+  if (prepared.gas) prepared.gas += 5_000n
+  return signPreparedAction(client, prepared)
+}
+
+const submitSequentialCalls = async (
+  client: EvmClient,
+  account: Account,
+  calls: readonly Call[],
+): Promise<Hex> => {
+  let lastHash: Hex | undefined
+  for (const call of calls) {
+    const signed = await prepareAndSignSingleCall(client, account, call)
+    const receipt = await submitRawSyncAction(client, {
+      serializedTransaction: signed,
+    })
+    lastHash = receipt.transactionHash
+  }
+  if (!lastHash) throw new Error('No transaction hash returned.')
+  return lastHash
+}
+
+/**
+ * Submits already-built calls. Uses Tempo batch submission where supported and
+ * otherwise falls back to sequential single-call transactions.
+ */
 export const submitCalls = async (
-  client: TempoClient,
+  client: EvmClient,
   account: Account,
   calls: readonly Call[],
   feeToken?: Address,
 ): Promise<Hex> => {
+  const preset = getClientNetwork(client)
+  if (!preset.capabilities.supportsBatchCalls) {
+    if (feeToken)
+      throw new Error(`${preset.id} does not support fee-token batched calls.`)
+    return submitSequentialCalls(client, account, calls)
+  }
+
   const result = await submitCallsAction(client, {
     account,
     calls,
@@ -124,12 +193,27 @@ export const submitCalls = async (
   return hash
 }
 
+/**
+ * Produces a signed transaction payload for pull-mode credentials. On non-Tempo
+ * chains this is limited to a single-call permit flow.
+ */
 export const prepareAndSign = async (
-  client: TempoClient,
+  client: EvmClient,
   account: Account,
   calls: readonly Call[],
   feeToken?: Address,
 ): Promise<Hex> => {
+  const preset = getClientNetwork(client)
+  if (!preset.capabilities.supportsBatchCalls) {
+    if (feeToken)
+      throw new Error(`${preset.id} does not support fee-token batched calls.`)
+    if (calls.length !== 1)
+      throw new Error(
+        `${preset.id} pull submission only supports single-call stake transactions. Use a permit-enabled token or switch to push submission.`,
+      )
+    return prepareAndSignSingleCall(client, account, calls[0]!)
+  }
+
   const prepared = await prepareCallsAction(client, {
     account,
     calls,
@@ -145,7 +229,7 @@ export const prepareAndSign = async (
 // envelope, bypassing Tempo's custom 0x76 serialization that embedded
 // wallets don't support.
 export const prepareAndProviderSign = async (
-  client: TempoClient,
+  client: EvmClient,
   account: Account,
   call: Call,
   provider: EIP1193Provider,
@@ -180,11 +264,12 @@ export const prepareAndProviderSign = async (
   })) as Hex
 }
 
-// Signs and submits each call individually via an EIP-1193 provider.
-// Used when the provider only supports standard EIP-1559 transactions and
-// cannot batch multiple calls into a single Tempo 0x76 transaction.
+/**
+ * Push-mode helper for wallet providers that can only sign standard EIP-1559
+ * transactions one call at a time.
+ */
 export const providerSubmitCalls = async (
-  client: TempoClient,
+  client: EvmClient,
   account: Account,
   calls: readonly Call[],
   provider: EIP1193Provider,
@@ -201,12 +286,20 @@ export const providerSubmitCalls = async (
   return lastHash
 }
 
+/**
+ * Applies a Tempo fee payer signature to a serialized batch transaction before
+ * the server submits it on behalf of the client.
+ */
 export const cosignWithFeePayer = async (
-  client: TempoClient,
+  client: EvmClient,
   serializedTransaction: Hex,
   feePayer: Account,
   feeToken?: Address,
 ): Promise<Hex> => {
+  const preset = getClientNetwork(client)
+  if (!preset.capabilities.supportsFeePayer)
+    throw new Error(`${preset.id} does not support fee-payer cosigning.`)
+
   const transaction = Transaction.deserialize(
     serializedTransaction as Transaction.TransactionSerializedTempo,
   )
@@ -221,7 +314,8 @@ export const cosignWithFeePayer = async (
   })
 }
 
+/** Broadcasts a fully signed serialized transaction and returns its receipt. */
 export const submitRawSync = async (
-  client: TempoClient,
+  client: EvmClient,
   serializedTransaction: Hex,
 ) => submitRawSyncAction(client, { serializedTransaction })

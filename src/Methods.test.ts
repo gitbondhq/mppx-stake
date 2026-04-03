@@ -17,9 +17,9 @@ const request = {
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 } as const
 
-describe('tempo.Methods.stake', () => {
+describe('stake method schema', () => {
   it('exposes the expected method identity', () => {
-    expect(Methods.stake.name).toBe('tempo')
+    expect(Methods.stake.name).toBe('stake')
     expect(Methods.stake.intent).toBe('stake')
   })
 

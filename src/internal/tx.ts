@@ -8,8 +8,8 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 
+import { erc20ApproveAbi } from '../abi/erc20.js'
 import { MPPEscrowAbi } from '../abi/MPPEscrow.js'
-import { erc20ApproveAbi } from './abi.js'
 import type { Account } from './account.js'
 
 type PermitParams = {
@@ -19,6 +19,9 @@ type PermitParams = {
   v: number
 }
 
+/**
+ * Builds the one-call permit flow used when the token supports ERC-2612.
+ */
 export const buildPermitCalls = (parameters: {
   account: Account
   amount: bigint
@@ -90,6 +93,9 @@ export const buildPermitCalls = (parameters: {
     )
 }
 
+/**
+ * Builds the legacy two-call flow: ERC20 approve, then escrow create.
+ */
 export const buildLegacyCalls = (parameters: {
   amount: bigint
   beneficiary: Address
@@ -120,11 +126,13 @@ export const buildLegacyCalls = (parameters: {
   ] as const
 }
 
+/** Pull credentials store the serialized signed transaction in `payload.signature`. */
 export const getSerializedTransaction = (payload: {
   signature: string
   type: 'transaction'
 }) => payload.signature as Hex
 
+/** Tempo batch transactions use a custom envelope prefix distinct from EIP-1559. */
 export const isTempoTransaction = (serializedTransaction: string | undefined) =>
   serializedTransaction?.startsWith(TxEnvelopeTempo.serializedType) === true ||
   serializedTransaction?.startsWith(TxEnvelopeTempo.feePayerMagic) === true
@@ -142,6 +150,11 @@ type StakeRequest = {
   }
 }
 
+/**
+ * Matches decoded transaction calls against the original stake challenge.
+ * This is the core guard that prevents the server from accepting a different
+ * escrow than the one it asked the client to create.
+ */
 export const matchStakeCalls = (parameters: {
   beneficiary: Address
   calls: readonly { data?: Hex | undefined; to?: Address | undefined }[]
@@ -249,6 +262,7 @@ type EscrowVerificationParams = {
   value: bigint
 }
 
+/** Confirms the transaction receipt emitted the expected `EscrowCreated` event. */
 export const assertEscrowCreatedReceipt = (
   receipt: TransactionReceipt,
   parameters: EscrowVerificationParams & {
@@ -296,6 +310,7 @@ export type EscrowState = {
   token: Address
 }
 
+/** Confirms the resolved on-chain escrow matches the expected payer and terms. */
 export const assertEscrowState = (
   escrow: EscrowState,
   parameters: EscrowVerificationParams,
@@ -310,6 +325,7 @@ export const assertEscrowState = (
   assertMatch('escrow.principal', escrow.principal, value)
 }
 
+/** Reads `getEscrow` on-chain and verifies the stored escrow state in full. */
 export const assertEscrowOnChain = async (
   client: Client,
   contract: Address,
@@ -326,9 +342,10 @@ export const assertEscrowOnChain = async (
   assertEscrowState(escrow, parameters)
 }
 
-export const toReceipt = (receipt: TransactionReceipt) =>
+/** Converts a successful transaction receipt into the MPP receipt shape. */
+export const toReceipt = (receipt: TransactionReceipt, method: string) =>
   ({
-    method: 'tempo',
+    method,
     reference: receipt.transactionHash,
     status: 'success',
     timestamp: new Date().toISOString(),

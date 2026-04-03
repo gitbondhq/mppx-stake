@@ -1,3 +1,6 @@
-export type { EIP1193Provider } from '../internal/client.js'
-export { stake, tempo } from '../tempo/client/index.js'
-export { Expires, Mppx, Transport } from 'mppx/client'
+import { createClientStake } from '../internal/stakeClient.js'
+import { stake as stakeMethod } from '../Methods.js'
+
+/** Client-side `stake` method implementation used to create credentials. */
+export const stake: ReturnType<typeof createClientStake> =
+  createClientStake(stakeMethod)

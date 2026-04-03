@@ -7,6 +7,10 @@ export type GetResolverParameters = {
   account?: Account | Address | undefined
 }
 
+/**
+ * Returns an account resolver that prefers an explicit override, then a
+ * default account, and finally the account already attached to the viem client.
+ */
 export const getResolver = (parameters: GetResolverParameters = {}) => {
   const { account: defaultAccount } = parameters
 

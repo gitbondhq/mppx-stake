@@ -2,7 +2,7 @@ import { PaymentRequest } from 'mppx'
 import { privateKeyToAccount } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
 
-import * as Methods from '../tempo/Methods.js'
+import * as Methods from '../Methods.js'
 import {
   assertEscrowState,
   buildLegacyCalls,
