@@ -5,7 +5,7 @@ import { parseDid } from './did.js'
 type StakeChallengeRequest = {
   amount: string
   contract: string
-  currency: string
+  token: string
   methodDetails: {
     action: 'createEscrow'
     beneficiary?: string | undefined

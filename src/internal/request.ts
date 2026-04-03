@@ -11,7 +11,7 @@ export type TypedStakeRequest = {
   chainId: number
   contract: Address
   counterparty: Address
-  currency: Address
+  token: Address
   submission?: 'push' | 'pull' | undefined
   stakeKey: Hex
 }
@@ -23,7 +23,7 @@ export type TypedStakeRequest = {
 export const toTypedRequest = (request: {
   amount: string
   contract: string
-  currency: string
+  token: string
   methodDetails: {
     beneficiary?: string | undefined
     chainId: number
@@ -39,7 +39,7 @@ export const toTypedRequest = (request: {
   chainId: request.methodDetails.chainId,
   contract: request.contract as Address,
   counterparty: request.methodDetails.counterparty as Address,
-  currency: request.currency as Address,
+  token: request.token as Address,
   submission: request.methodDetails.submission,
   stakeKey: request.methodDetails.stakeKey as Hex,
 })

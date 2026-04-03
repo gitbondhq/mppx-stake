@@ -22,7 +22,7 @@ type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }
 type StakeChallengeRequest = {
   amount: string
   contract: string
-  currency: string
+  token: string
   methodDetails: {
     action: 'createEscrow'
     beneficiary?: string | undefined
@@ -44,7 +44,7 @@ export type StakeDefaults = {
   chainId?: number | undefined
   contract?: Address | undefined
   counterparty?: Address | undefined
-  currency?: Address | undefined
+  token?: Address | undefined
   description?: string | undefined
 }
 
@@ -75,7 +75,7 @@ export const createServerStake = (method: StakeMethod) => {
         chainId: parameters.chainId,
         contract: parameters.contract,
         counterparty: parameters.counterparty,
-        currency: parameters.currency,
+        token: parameters.token,
         description: parameters.description,
       },
 
@@ -119,7 +119,7 @@ export const createServerStake = (method: StakeMethod) => {
         const verifyParams = {
           beneficiary,
           counterparty: typed.counterparty,
-          currency: typed.currency,
+          token: typed.token,
           payer,
           value: typed.amount,
         }
@@ -223,7 +223,7 @@ const assertRequestMatches = (
   const pairs = [
     ['amount', currentRequest.amount, challengeRequest.amount],
     ['contract', currentRequest.contract, challengeRequest.contract],
-    ['currency', currentRequest.currency, challengeRequest.currency],
+    ['token', currentRequest.token, challengeRequest.token],
     [
       'chainId',
       currentRequest.methodDetails.chainId,

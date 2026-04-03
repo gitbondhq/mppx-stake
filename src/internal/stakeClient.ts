@@ -53,7 +53,7 @@ export const createClientStake = (method: StakeMethod) => {
         const transportPolicy = await detectTransportPolicy({
           chainId: typed.chainId,
           client,
-          currency: typed.currency,
+          token: typed.token,
           owner: account.address,
         })
 
@@ -67,7 +67,7 @@ export const createClientStake = (method: StakeMethod) => {
                 client,
                 contract: typed.contract,
                 counterparty: typed.counterparty,
-                currency: typed.currency,
+                token: typed.token,
                 permitFactory: createPermitParams,
                 stakeKey: typed.stakeKey,
               })
@@ -76,7 +76,7 @@ export const createClientStake = (method: StakeMethod) => {
                 beneficiary,
                 contract: typed.contract,
                 counterparty: typed.counterparty,
-                currency: typed.currency,
+                token: typed.token,
                 stakeKey: typed.stakeKey,
               })
 

@@ -54,7 +54,7 @@ const mppx = Mppx.create({
     [...tempo({ account }), stake({
       chainId: 42431,
       contract: '0x1234...',
-      currency: '0x20C0000000000000000000000000000000000000',
+      token: '0x20C0000000000000000000000000000000000000',
     })],
   ],
   secretKey: process.env.MPP_SECRET_KEY!,
@@ -69,7 +69,7 @@ import { stake } from '@gitbondhq/mppx-escrow/server'
 const method = stake({
   chainId: 42431,
   contract: '0x1234...',
-  currency: '0x20C0000000000000000000000000000000000000',
+  token: '0x20C0000000000000000000000000000000000000',
 })
 ```
 

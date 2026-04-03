@@ -20,12 +20,15 @@ const input = {
   chainId: 42431,
   contract: '0x1111111111111111111111111111111111111111',
   counterparty: '0x2222222222222222222222222222222222222222',
-  currency: '0x20C0000000000000000000000000000000000000',
+  token: '0x20C0000000000000000000000000000000000000',
   stakeKey:
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 } as const
 
-const challenge = PaymentRequest.fromMethod(Methods.stake, input)
+const challenge = PaymentRequest.fromMethod(
+  Methods.stake({ name: 'tempo' }),
+  input,
+)
 
 describe('stake transaction helpers', () => {
   it('builds and matches the legacy approve + createEscrow flow', () => {
@@ -34,7 +37,7 @@ describe('stake transaction helpers', () => {
       beneficiary: input.beneficiary,
       contract: input.contract,
       counterparty: input.counterparty,
-      currency: input.currency,
+      token: input.token,
       stakeKey: input.stakeKey,
     })
 
@@ -57,7 +60,7 @@ describe('stake transaction helpers', () => {
       client: {} as unknown as import('viem').Client,
       contract: input.contract,
       counterparty: input.counterparty,
-      currency: input.currency,
+      token: input.token,
       permitFactory: async ({ deadline }) => ({
         deadline,
         r: `0x${'11'.repeat(32)}` as const,
@@ -84,7 +87,7 @@ describe('stake transaction helpers', () => {
         beneficiary: input.beneficiary,
         contract: input.contract,
         counterparty: input.counterparty,
-        currency: input.currency,
+        token: input.token,
         stakeKey: input.stakeKey,
       }),
       {
@@ -112,12 +115,12 @@ describe('stake transaction helpers', () => {
           isActive: true,
           payer: payer.address,
           principal: 5_000_000n,
-          token: input.currency,
+          token: input.token,
         },
         {
           beneficiary: input.beneficiary,
           counterparty: input.counterparty,
-          currency: input.currency,
+          token: input.token,
           payer: payer.address,
           value: 5_000_000n,
         },

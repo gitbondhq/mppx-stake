@@ -30,7 +30,7 @@ export const buildPermitCalls = (parameters: {
   client: Client
   contract: Address
   counterparty: Address
-  currency: Address
+  token: Address
   deadlineSeconds?: number | undefined
   permitFactory: (parameters: {
     account: Account
@@ -52,7 +52,7 @@ export const buildPermitCalls = (parameters: {
     client,
     contract,
     counterparty,
-    currency,
+    token,
     stakeKey,
   } = parameters
   const deadline = BigInt(
@@ -68,7 +68,7 @@ export const buildPermitCalls = (parameters: {
       deadline,
       owner: account.address,
       spender: contract,
-      token: currency,
+      token: token,
     })
     .then(
       permit =>
@@ -81,7 +81,7 @@ export const buildPermitCalls = (parameters: {
                 account.address,
                 counterparty,
                 beneficiary,
-                currency,
+                token,
                 amount,
                 permit,
               ],
@@ -101,10 +101,10 @@ export const buildLegacyCalls = (parameters: {
   beneficiary: Address
   contract: Address
   counterparty: Address
-  currency: Address
+  token: Address
   stakeKey: Hex
 }) => {
-  const { amount, beneficiary, contract, counterparty, currency, stakeKey } =
+  const { amount, beneficiary, contract, counterparty, token, stakeKey } =
     parameters
   return [
     {
@@ -113,12 +113,12 @@ export const buildLegacyCalls = (parameters: {
         args: [contract, amount],
         functionName: 'approve',
       }),
-      to: currency,
+      to: token,
     },
     {
       data: encodeFunctionData({
         abi: MPPEscrowAbi,
-        args: [stakeKey, counterparty, beneficiary, currency, amount],
+        args: [stakeKey, counterparty, beneficiary, token, amount],
         functionName: 'createEscrow',
       }),
       to: contract,
@@ -140,7 +140,7 @@ export const isTempoTransaction = (serializedTransaction: string | undefined) =>
 type StakeRequest = {
   amount: string
   contract: string
-  currency: string
+  token: string
   methodDetails: {
     action: 'createEscrow'
     beneficiary?: string | undefined
@@ -165,7 +165,7 @@ export const matchStakeCalls = (parameters: {
   const amount = BigInt(challenge.amount)
   const contract = challenge.contract as Address
   const counterparty = challenge.methodDetails.counterparty as Address
-  const currency = challenge.currency as Address
+  const token = challenge.token as Address
   const stakeKey = challenge.methodDetails.stakeKey as Hex
 
   if (calls.length === 1) {
@@ -196,7 +196,7 @@ export const matchStakeCalls = (parameters: {
     assertAddress('payer', payerArg, payer)
     assertAddress('counterparty', counterpartyArg, counterparty)
     assertAddress('beneficiary', beneficiaryArg, beneficiary)
-    assertAddress('currency', tokenArg, currency)
+    assertAddress('token', tokenArg, token)
     assertMatch('amount', amountArg, amount)
 
     return 'permit' as const
@@ -207,7 +207,7 @@ export const matchStakeCalls = (parameters: {
     if (
       !approveCall?.data ||
       !approveCall.to ||
-      !isAddressEqual(approveCall.to, currency)
+      !isAddressEqual(approveCall.to, token)
     )
       throw new Error('Invalid legacy transaction: wrong approve target.')
 
@@ -245,7 +245,7 @@ export const matchStakeCalls = (parameters: {
     assertMatch('stakeKey', key, stakeKey)
     assertAddress('counterparty', counterpartyArg, counterparty)
     assertAddress('beneficiary', beneficiaryArg, beneficiary)
-    assertAddress('currency', tokenArg, currency)
+    assertAddress('token', tokenArg, token)
     assertMatch('amount', amountArg, amount)
 
     return 'legacy' as const
@@ -257,7 +257,7 @@ export const matchStakeCalls = (parameters: {
 type EscrowVerificationParams = {
   beneficiary: Address
   counterparty: Address
-  currency: Address
+  token: Address
   payer: Address
   value: bigint
 }
@@ -273,15 +273,8 @@ export const assertEscrowCreatedReceipt = (
   if (receipt.status !== 'success')
     throw new Error(`Stake transaction reverted: ${receipt.transactionHash}`)
 
-  const {
-    beneficiary,
-    contract,
-    counterparty,
-    currency,
-    payer,
-    stakeKey,
-    value,
-  } = parameters
+  const { beneficiary, contract, counterparty, token, payer, stakeKey, value } =
+    parameters
   const logs = parseEventLogs({
     abi: MPPEscrowAbi,
     eventName: 'EscrowCreated',
@@ -294,7 +287,7 @@ export const assertEscrowCreatedReceipt = (
       isAddressEqual(log.args.payer, payer) &&
       isAddressEqual(log.args.beneficiary, beneficiary) &&
       isAddressEqual(log.args.counterparty, counterparty) &&
-      isAddressEqual(log.args.token, currency) &&
+      isAddressEqual(log.args.token, token) &&
       log.args.amount === value,
   )
 
@@ -315,13 +308,13 @@ export const assertEscrowState = (
   escrow: EscrowState,
   parameters: EscrowVerificationParams,
 ) => {
-  const { beneficiary, counterparty, currency, payer, value } = parameters
+  const { beneficiary, counterparty, token, payer, value } = parameters
 
   if (!escrow.isActive) throw new Error('Escrow is not active.')
   assertAddress('escrow.payer', escrow.payer, payer)
   assertAddress('escrow.beneficiary', escrow.beneficiary, beneficiary)
   assertAddress('escrow.counterparty', escrow.counterparty, counterparty)
-  assertAddress('escrow.token', escrow.token, currency)
+  assertAddress('escrow.token', escrow.token, token)
   assertMatch('escrow.principal', escrow.principal, value)
 }
 

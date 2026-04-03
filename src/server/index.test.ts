@@ -17,12 +17,13 @@ const payer = '0x4444444444444444444444444444444444444444' as Address
 const beneficiary = '0x3333333333333333333333333333333333333333' as Address
 const counterparty = '0x2222222222222222222222222222222222222222' as Address
 const contract = '0x1111111111111111111111111111111111111111' as Address
-const currency = '0x20C0000000000000000000000000000000000000' as Address
+const token = '0x20C0000000000000000000000000000000000000' as Address
 const stakeKey =
   '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex
 const chainId = 42431
 const txHash =
   '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex
+const methodName = 'tempo'
 
 const rawInput = {
   amount: '5000000',
@@ -30,11 +31,12 @@ const rawInput = {
   chainId,
   contract,
   counterparty,
-  currency,
+  token,
   stakeKey,
 }
 
-const challengeRequest = PaymentRequest.fromMethod(Methods.stake, rawInput)
+const stakeMethod = Methods.stake({ name: methodName })
+const challengeRequest = PaymentRequest.fromMethod(stakeMethod, rawInput)
 
 const mocks = vi.hoisted(() => ({
   assertEscrowCreatedReceipt: vi.fn(),
@@ -89,7 +91,7 @@ const makeCredential = (
   challenge: {
     id: 'test-challenge-id',
     intent: 'stake' as const,
-    method: 'stake' as const,
+    method: methodName,
     realm: 'test.example.com',
     request: challengeRequest,
   },
@@ -99,28 +101,34 @@ const makeCredential = (
 
 describe('server stake exports', () => {
   it('composes with an existing method set', () => {
-    const methods = [...upstreamTempo({ account }), stake({})] as const
+    const methods = [
+      ...upstreamTempo({ account }),
+      stake({ name: methodName }),
+    ] as const
 
     expect(methods).toHaveLength(3)
     expect(methods[0].intent).toBe('charge')
     expect(methods[1].intent).toBe('session')
     expect(methods[2].intent).toBe('stake')
+    expect(methods[2].name).toBe(methodName)
   })
 
   it('exposes the standalone stake server method', () => {
-    const method = stake({})
-    expect(method.name).toBe('stake')
+    const method = stake({ name: methodName })
+    expect(method.name).toBe(methodName)
     expect(method.intent).toBe('stake')
   })
 
   it('wires stake into Mppx.create()', () => {
     const mppx = Mppx.create({
-      methods: [[...upstreamTempo({ account }), stake({})] as const],
+      methods: [
+        [...upstreamTempo({ account }), stake({ name: methodName })] as const,
+      ],
       secretKey: 'test-secret',
     })
 
     expect(typeof mppx.stake).toBe('function')
-    expect(typeof mppx['stake/stake']).toBe('function')
+    expect(typeof mppx[`${methodName}/stake`]).toBe('function')
   })
 })
 
@@ -131,8 +139,9 @@ describe('server stake verification', () => {
       chainId,
       contract,
       counterparty,
-      currency,
+      token,
       description: 'Stake required',
+      name: methodName,
     })
 
     expect(method.defaults).toEqual({
@@ -140,7 +149,7 @@ describe('server stake verification', () => {
       chainId,
       contract,
       counterparty,
-      currency,
+      token,
       description: 'Stake required',
     })
     expect(method.defaults).not.toHaveProperty('externalId')
@@ -153,12 +162,12 @@ describe('server stake verification', () => {
       it('fetches receipt and verifies on-chain state', async () => {
         mocks.getTransactionReceipt.mockResolvedValue(mockReceipt)
 
-        const method = stake({ chainId, contract, currency })
+        const method = stake({ chainId, contract, token, name: methodName })
         const credential = makeCredential({ hash: txHash, type: 'hash' })
         const result = await method.verify({ credential, request: rawInput })
 
         expect(result).toEqual({
-          method: 'stake',
+          method: methodName,
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -177,7 +186,7 @@ describe('server stake verification', () => {
         beneficiary,
         contract,
         counterparty,
-        currency,
+        token,
         stakeKey,
       })
 
@@ -189,7 +198,7 @@ describe('server stake verification', () => {
         })
         mocks.submitRawSync.mockResolvedValue(mockReceipt)
 
-        const method = stake({ chainId, contract, currency })
+        const method = stake({ chainId, contract, token, name: methodName })
         const credential = makeCredential({
           signature: serializedTx,
           type: 'transaction',
@@ -197,7 +206,7 @@ describe('server stake verification', () => {
         const result = await method.verify({ credential, request: rawInput })
 
         expect(result).toEqual({
-          method: 'stake',
+          method: methodName,
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -227,8 +236,9 @@ describe('server stake verification', () => {
         const method = stake({
           chainId,
           contract,
-          currency,
+          token,
           feePayer: feePayerAccount as never,
+          name: methodName,
         })
         const credential = makeCredential({
           signature: serializedTx,
@@ -259,8 +269,9 @@ describe('server stake verification', () => {
         const method = stake({
           chainId,
           contract,
-          currency,
+          token,
           feePayer: 'https://feepayer.example.com',
+          name: methodName,
         })
         const credential = makeCredential({
           signature: serializedTx,
@@ -284,7 +295,7 @@ describe('server stake verification', () => {
             payer,
             counterparty,
             beneficiary,
-            currency,
+            token,
             5_000_000n,
             {
               deadline: 0n,
@@ -303,7 +314,7 @@ describe('server stake verification', () => {
         })
         mocks.submitRawSync.mockResolvedValue(mockReceipt)
 
-        const method = stake({ chainId, contract, currency })
+        const method = stake({ chainId, contract, token, name: methodName })
         const credential = makeCredential({
           signature: standardTx,
           type: 'transaction',
@@ -315,7 +326,7 @@ describe('server stake verification', () => {
         })
 
         expect(result).toEqual({
-          method: 'stake',
+          method: methodName,
           reference: txHash,
           status: 'success',
           timestamp: expect.any(String),
@@ -339,8 +350,9 @@ describe('server stake verification', () => {
         const method = stake({
           chainId,
           contract,
-          currency,
+          token,
           feePayer: feePayerAccount as never,
+          name: methodName,
         })
         const credential = makeCredential({
           signature: '0x02aabbcc' as Hex,
@@ -360,7 +372,7 @@ describe('server stake verification', () => {
           signature: undefined,
         })
 
-        const method = stake({ chainId, contract, currency })
+        const method = stake({ chainId, contract, token, name: methodName })
         const credential = makeCredential({
           signature: serializedTx,
           type: 'transaction',
@@ -373,8 +385,8 @@ describe('server stake verification', () => {
     })
 
     it('rejects when challenge request does not match', async () => {
-      const method = stake({ chainId, contract, currency })
-      const mismatchedRequest = PaymentRequest.fromMethod(Methods.stake, {
+      const method = stake({ chainId, contract, token, name: methodName })
+      const mismatchedRequest = PaymentRequest.fromMethod(stakeMethod, {
         ...rawInput,
         amount: '9999999',
       })
@@ -383,7 +395,7 @@ describe('server stake verification', () => {
         challenge: {
           id: 'test-id',
           intent: 'stake' as const,
-          method: 'stake' as const,
+          method: methodName,
           realm: 'test.example.com',
           request: mismatchedRequest,
         },
@@ -395,7 +407,7 @@ describe('server stake verification', () => {
     })
 
     it('rejects when source DID chainId does not match', async () => {
-      const method = stake({ chainId, contract, currency })
+      const method = stake({ chainId, contract, token, name: methodName })
       const credential = {
         ...makeCredential({ hash: txHash, type: 'hash' }),
         source: `did:pkh:eip155:1:${payer}`,
