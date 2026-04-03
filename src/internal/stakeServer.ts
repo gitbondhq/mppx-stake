@@ -5,6 +5,10 @@ import { getTransactionReceipt } from 'viem/actions'
 import { Transaction } from 'viem/tempo'
 
 import { getNetworkPresetByChainId } from '../networkConfig.js'
+import type {
+  StakeChallengeRequest,
+  StakeCredentialPayload,
+} from '../stakeSchema.js'
 import { cosignWithFeePayer, createClient, submitRawSync } from './client.js'
 import { toTypedRequest } from './request.js'
 import { resolvePayerAndBeneficiary } from './source.js'
@@ -18,26 +22,6 @@ import {
 } from './tx.js'
 
 type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }
-
-type StakeChallengeRequest = {
-  amount: string
-  contract: string
-  token: string
-  methodDetails: {
-    action: 'createEscrow'
-    beneficiary?: string | undefined
-    chainId: number
-    counterparty: string
-    policy?: string | undefined
-    resource?: string | undefined
-    submission?: 'push' | 'pull' | undefined
-    stakeKey: `0x${string}`
-  }
-}
-
-type StakeCredentialPayload =
-  | { hash: Hex; type: 'hash' }
-  | { signature: string; type: 'transaction' }
 
 export type StakeDefaults = {
   beneficiary?: Address | undefined

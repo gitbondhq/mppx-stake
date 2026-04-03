@@ -1,6 +1,8 @@
 import { z } from 'mppx'
 import type { Address, Hex } from 'viem'
 
+import type { StakeChallengeRequest } from '../stakeSchema.js'
+
 /** MPP stake amounts are base-unit integer strings, not decimal display values. */
 export const baseUnitAmount = () =>
   z.string().check(z.regex(/^\d+$/, 'Invalid base-unit amount'))
@@ -20,18 +22,9 @@ export type TypedStakeRequest = {
  * Normalizes the wire-format request into strongly typed values used by the
  * client and server transaction helpers.
  */
-export const toTypedRequest = (request: {
-  amount: string
-  contract: string
-  token: string
-  methodDetails: {
-    beneficiary?: string | undefined
-    chainId: number
-    counterparty: string
-    submission?: 'push' | 'pull' | undefined
-    stakeKey: string
-  }
-}): TypedStakeRequest => ({
+export const toTypedRequest = (
+  request: StakeChallengeRequest,
+): TypedStakeRequest => ({
   amount: BigInt(request.amount),
   beneficiary: request.methodDetails.beneficiary
     ? (request.methodDetails.beneficiary as Address)

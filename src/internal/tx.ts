@@ -10,6 +10,7 @@ import { readContract } from 'viem/actions'
 
 import { erc20ApproveAbi } from '../abi/erc20.js'
 import { MPPEscrowAbi } from '../abi/MPPEscrow.js'
+import type { StakeChallengeRequest } from '../stakeSchema.js'
 import type { Account } from './account.js'
 
 type PermitParams = {
@@ -137,19 +138,6 @@ export const isTempoTransaction = (serializedTransaction: string | undefined) =>
   serializedTransaction?.startsWith(TxEnvelopeTempo.serializedType) === true ||
   serializedTransaction?.startsWith(TxEnvelopeTempo.feePayerMagic) === true
 
-type StakeRequest = {
-  amount: string
-  contract: string
-  token: string
-  methodDetails: {
-    action: 'createEscrow'
-    beneficiary?: string | undefined
-    chainId: number
-    counterparty: string
-    stakeKey: string
-  }
-}
-
 /**
  * Matches decoded transaction calls against the original stake challenge.
  * This is the core guard that prevents the server from accepting a different
@@ -158,7 +146,7 @@ type StakeRequest = {
 export const matchStakeCalls = (parameters: {
   beneficiary: Address
   calls: readonly { data?: Hex | undefined; to?: Address | undefined }[]
-  challenge: StakeRequest
+  challenge: StakeChallengeRequest
   payer: Address
 }) => {
   const { beneficiary, calls, challenge, payer } = parameters

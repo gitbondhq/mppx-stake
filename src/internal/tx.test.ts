@@ -3,6 +3,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
 
 import * as Methods from '../Methods.js'
+import type { StakeChallengeRequest } from '../stakeSchema.js'
 import {
   assertEscrowState,
   buildLegacyCalls,
@@ -28,7 +29,7 @@ const input = {
 const challenge = PaymentRequest.fromMethod(
   Methods.stake({ name: 'tempo' }),
   input,
-)
+) as StakeChallengeRequest
 
 describe('stake transaction helpers', () => {
   it('builds and matches the legacy approve + createEscrow flow', () => {
