@@ -14,7 +14,6 @@ export type NetworkFamily = 'evm'
 export type NetworkCapabilities = {
   supportsBatchCalls: boolean
   supportsFeePayer: boolean
-  supportsPermit: boolean
 }
 
 export type NetworkPreset = {
@@ -34,7 +33,6 @@ export const networkPresets: Record<NetworkId, NetworkPreset> = {
     capabilities: {
       supportsBatchCalls: false,
       supportsFeePayer: false,
-      supportsPermit: true,
     },
     chain: base,
     family: 'evm',
@@ -44,7 +42,6 @@ export const networkPresets: Record<NetworkId, NetworkPreset> = {
     capabilities: {
       supportsBatchCalls: false,
       supportsFeePayer: false,
-      supportsPermit: true,
     },
     chain: mainnet,
     family: 'evm',
@@ -54,7 +51,6 @@ export const networkPresets: Record<NetworkId, NetworkPreset> = {
     capabilities: {
       supportsBatchCalls: true,
       supportsFeePayer: true,
-      supportsPermit: true,
     },
     chain: tempo,
     family: 'evm',
@@ -64,7 +60,6 @@ export const networkPresets: Record<NetworkId, NetworkPreset> = {
     capabilities: {
       supportsBatchCalls: true,
       supportsFeePayer: true,
-      supportsPermit: true,
     },
     chain: tempoModerato,
     family: 'evm',
