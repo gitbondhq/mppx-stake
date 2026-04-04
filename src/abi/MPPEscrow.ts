@@ -1,4 +1,4 @@
-// Auto-generated from local forge build output — do not edit manually.
+// Auto-generated from monorepo forge build output — do not edit manually.
 import type { Abi } from 'viem'
 
 export const MPPEscrowAbi = [
