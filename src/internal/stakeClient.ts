@@ -25,7 +25,7 @@ export type StakeParameters = {
  * Turns the shared stake schema into a client method that can:
  * 1. build the escrow calls
  * 2. choose permit vs approve+create
- * 3. either submit the transaction or return a signed payload
+ * 3. either broadcast locally or return a signed transaction for the server
  */
 export const createClientStake = (method: StakeMethod) => {
   return (parameters: StakeParameters = {}) => {
@@ -49,7 +49,7 @@ export const createClientStake = (method: StakeMethod) => {
         const beneficiary = typed.beneficiary ?? account.address
         const feeToken =
           (context?.feeToken as Address | undefined) ?? parameters.feeToken
-        const submission = typed.submission ?? 'push'
+        const feePayer = typed.feePayer === true
         const transportPolicy = await detectTransportPolicy({
           chainId: typed.chainId,
           client,
@@ -83,7 +83,7 @@ export const createClientStake = (method: StakeMethod) => {
         const source = `did:pkh:eip155:${typed.chainId}:${account.address}`
         const provider = parameters.provider
 
-        if (submission === 'push') {
+        if (!feePayer) {
           const hash = provider
             ? await providerSubmitCalls(client, account, calls, provider)
             : await submitCalls(client, account, calls, feeToken)
@@ -94,12 +94,11 @@ export const createClientStake = (method: StakeMethod) => {
           })
         }
 
-        // Pull mode requires Tempo batch transactions (0x76) which wallet
-        // providers cannot sign. Pull is only triggered when the server has a
-        // fee payer configured, and fee payer cosigning requires 0x76.
+        // Fee-payer-backed transaction credentials require Tempo batch
+        // transactions (0x76), which wallet providers cannot sign.
         if (provider)
           throw new Error(
-            'Pull mode is not supported with a wallet provider. ' +
+            'Fee-payer-backed transaction credentials are not supported with a wallet provider. ' +
               'Wallet providers can only produce standard EIP-1559 transactions ' +
               'which cannot be cosigned by a fee payer.',
           )

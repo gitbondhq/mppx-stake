@@ -2,7 +2,7 @@ export { MPPEscrowAbi } from './abi/MPPEscrow.js'
 export {
   parseStakeChallenge,
   type StakeChallenge,
-  withStakeSubmission,
+  withStakeFeePayer,
 } from './challenge.js'
 export * as Methods from './Methods.js'
 export {
@@ -19,6 +19,5 @@ export {
   type StakeChallengeRequest,
   type StakeCredentialPayload,
   type StakeMethodInput,
-  type StakeSubmission,
   toStakeMethodInput,
 } from './stakeSchema.js'

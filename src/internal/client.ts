@@ -188,8 +188,8 @@ export const submitCalls = async (
 }
 
 /**
- * Produces a signed transaction payload for pull-mode credentials. On non-Tempo
- * chains this is limited to a single-call permit flow.
+ * Produces a signed transaction payload for server-broadcast credentials. On
+ * non-Tempo chains this is limited to a single-call permit flow.
  */
 export const prepareAndSign = async (
   client: EvmClient,
@@ -203,7 +203,7 @@ export const prepareAndSign = async (
       throw new Error(`${preset.id} does not support fee-token batched calls.`)
     if (calls.length !== 1)
       throw new Error(
-        `${preset.id} pull submission only supports single-call stake transactions. Use a permit-enabled token or switch to push submission.`,
+        `${preset.id} transaction credentials only support single-call stake transactions without batch calls. Use a permit-enabled token or broadcast the transaction locally.`,
       )
     return prepareAndSignSingleCall(client, account, calls[0]!)
   }
@@ -259,8 +259,8 @@ export const prepareAndProviderSign = async (
 }
 
 /**
- * Push-mode helper for wallet providers that can only sign standard EIP-1559
- * transactions one call at a time.
+ * Client-broadcast helper for wallet providers that can only sign standard
+ * EIP-1559 transactions one call at a time.
  */
 export const providerSubmitCalls = async (
   client: EvmClient,

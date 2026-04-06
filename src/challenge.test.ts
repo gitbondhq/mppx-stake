@@ -2,7 +2,7 @@ import { Challenge } from 'mppx'
 import { describe, expect, it } from 'vitest'
 
 import type { StakeChallenge } from './challenge.js'
-import { parseStakeChallenge, withStakeSubmission } from './challenge.js'
+import { parseStakeChallenge, withStakeFeePayer } from './challenge.js'
 import { stake as createStakeMethod } from './Methods.js'
 
 const methodName = 'tempo'
@@ -30,7 +30,7 @@ describe('stake challenge helpers', () => {
       realm: 'api.example.com',
       request: {
         ...request,
-        submission: 'pull',
+        feePayer: true,
       },
     }) as StakeChallenge
 
@@ -61,26 +61,25 @@ describe('stake challenge helpers', () => {
     ).toEqual(original)
   })
 
-  it('rewrites only the submission mode', () => {
+  it('rewrites only the feePayer flag', () => {
     const original = Challenge.fromMethod(stakeMethod, {
       id: 'challenge-3',
       realm: 'api.example.com',
       request,
     }) as StakeChallenge
-    const updated = withStakeSubmission(original, 'push')
+    const updated = withStakeFeePayer(original, false)
 
-    expect(updated.request.methodDetails.submission).toBe('push')
+    expect(updated.request.methodDetails.feePayer).toBe(false)
+    expect(updated.request.action).toBe(original.request.action)
     expect(updated.request.amount).toBe(original.request.amount)
+    expect(updated.request.counterparty).toBe(original.request.counterparty)
     expect(updated.request.contract).toBe(original.request.contract)
+    expect(updated.request.policy).toBe(original.request.policy)
+    expect(updated.request.resource).toBe(original.request.resource)
+    expect(updated.request.stakeKey).toBe(original.request.stakeKey)
     expect(updated.request.token).toBe(original.request.token)
     expect(updated.request.methodDetails.chainId).toBe(
       original.request.methodDetails.chainId,
-    )
-    expect(updated.request.methodDetails.counterparty).toBe(
-      original.request.methodDetails.counterparty,
-    )
-    expect(updated.request.methodDetails.stakeKey).toBe(
-      original.request.methodDetails.stakeKey,
     )
     expect(updated.id).toBe(original.id)
     expect(updated.method).toBe(original.method)

@@ -1,26 +1,25 @@
 import type { Address, Hex } from 'viem'
 
-export type StakeSubmission = 'push' | 'pull'
-
 export type StakeChallengeRequest = {
+  action?: 'createEscrow' | undefined
   amount: string
+  beneficiary?: Address | undefined
   contract: Address
+  counterparty: Address
+  policy?: string | undefined
+  resource?: string | undefined
+  stakeKey: Hex
   token: Address
   description?: string | undefined
   externalId?: string | undefined
   methodDetails: {
-    action: 'createEscrow'
-    beneficiary?: Address | undefined
     chainId: number
-    counterparty: Address
-    policy?: string | undefined
-    resource?: string | undefined
-    stakeKey: Hex
-    submission?: StakeSubmission | undefined
+    feePayer?: boolean | undefined
   }
 }
 
 export type StakeMethodInput = {
+  action?: 'createEscrow' | undefined
   amount: string
   beneficiary?: Address | undefined
   chainId: number
@@ -32,7 +31,7 @@ export type StakeMethodInput = {
   policy?: string | undefined
   resource?: string | undefined
   stakeKey: Hex
-  submission?: StakeSubmission | undefined
+  feePayer?: boolean | undefined
 }
 
 export type StakeCredentialPayload =
@@ -43,25 +42,26 @@ export const toStakeMethodInput = (
   request: StakeChallengeRequest,
 ): StakeMethodInput => {
   return {
+    ...(request.action !== undefined ? { action: request.action } : {}),
     amount: request.amount,
-    ...(request.methodDetails.beneficiary
-      ? { beneficiary: request.methodDetails.beneficiary }
+    ...(request.beneficiary !== undefined
+      ? { beneficiary: request.beneficiary }
       : {}),
     chainId: request.methodDetails.chainId,
     contract: request.contract,
-    counterparty: request.methodDetails.counterparty,
+    counterparty: request.counterparty,
     token: request.token,
-    ...(request.description ? { description: request.description } : {}),
-    ...(request.externalId ? { externalId: request.externalId } : {}),
-    ...(request.methodDetails.policy
-      ? { policy: request.methodDetails.policy }
+    ...(request.description !== undefined
+      ? { description: request.description }
       : {}),
-    ...(request.methodDetails.resource
-      ? { resource: request.methodDetails.resource }
+    ...(request.externalId !== undefined
+      ? { externalId: request.externalId }
       : {}),
-    stakeKey: request.methodDetails.stakeKey,
-    ...(request.methodDetails.submission
-      ? { submission: request.methodDetails.submission }
+    ...(request.policy !== undefined ? { policy: request.policy } : {}),
+    ...(request.resource !== undefined ? { resource: request.resource } : {}),
+    stakeKey: request.stakeKey,
+    ...(request.methodDetails.feePayer !== undefined
+      ? { feePayer: request.methodDetails.feePayer }
       : {}),
   }
 }

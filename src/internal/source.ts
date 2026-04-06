@@ -16,8 +16,8 @@ export const resolvePayerAndBeneficiary = (
     throw new Error('Source DID chainId does not match the challenge chainId.')
 
   return {
-    beneficiary: request.methodDetails.beneficiary
-      ? getAddress(request.methodDetails.beneficiary)
+    beneficiary: request.beneficiary
+      ? getAddress(request.beneficiary)
       : did.address,
     payer: did.address,
   }

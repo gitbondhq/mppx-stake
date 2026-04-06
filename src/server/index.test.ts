@@ -158,6 +158,15 @@ describe('server stake verification', () => {
   describe('verify', () => {
     beforeEach(() => vi.clearAllMocks())
 
+    const feePayerRequest = {
+      ...rawInput,
+      feePayer: true,
+    } as const
+    const feePayerChallengeRequest = PaymentRequest.fromMethod(
+      stakeMethod,
+      feePayerRequest,
+    )
+
     describe('hash credential', () => {
       it('fetches receipt and verifies on-chain state', async () => {
         mocks.getTransactionReceipt.mockResolvedValue(mockReceipt)
@@ -176,6 +185,33 @@ describe('server stake verification', () => {
         expect(mocks.assertEscrowCreatedReceipt).toHaveBeenCalledOnce()
         expect(mocks.assertEscrowOnChain).toHaveBeenCalledOnce()
         expect(mocks.submitRawSync).not.toHaveBeenCalled()
+      })
+
+      it('rejects hash credentials when feePayer is true', async () => {
+        const method = stake({
+          chainId,
+          contract,
+          token,
+          feePayer: {
+            address: '0x5555555555555555555555555555555555555555',
+            type: 'local',
+          } as never,
+          name: methodName,
+        })
+        const credential = {
+          ...makeCredential({ hash: txHash, type: 'hash' }),
+          challenge: {
+            id: 'test-challenge-id',
+            intent: 'stake' as const,
+            method: methodName,
+            realm: 'test.example.com',
+            request: feePayerChallengeRequest,
+          },
+        }
+
+        await expect(
+          method.verify({ credential, request: feePayerRequest }),
+        ).rejects.toThrow(/hash credentials.*feepayer/i)
       })
     })
 
@@ -240,11 +276,20 @@ describe('server stake verification', () => {
           feePayer: feePayerAccount as never,
           name: methodName,
         })
-        const credential = makeCredential({
-          signature: serializedTx,
-          type: 'transaction',
-        })
-        await method.verify({ credential, request: rawInput })
+        const credential = {
+          ...makeCredential({
+            signature: serializedTx,
+            type: 'transaction',
+          }),
+          challenge: {
+            id: 'test-challenge-id',
+            intent: 'stake' as const,
+            method: methodName,
+            realm: 'test.example.com',
+            request: feePayerChallengeRequest,
+          },
+        }
+        await method.verify({ credential, request: feePayerRequest })
 
         expect(mocks.cosignWithFeePayer).toHaveBeenCalledWith(
           expect.anything(),
@@ -273,11 +318,20 @@ describe('server stake verification', () => {
           feePayer: 'https://feepayer.example.com',
           name: methodName,
         })
-        const credential = makeCredential({
-          signature: serializedTx,
-          type: 'transaction',
-        })
-        await method.verify({ credential, request: rawInput })
+        const credential = {
+          ...makeCredential({
+            signature: serializedTx,
+            type: 'transaction',
+          }),
+          challenge: {
+            id: 'test-challenge-id',
+            intent: 'stake' as const,
+            method: methodName,
+            realm: 'test.example.com',
+            request: feePayerChallengeRequest,
+          },
+        }
+        await method.verify({ credential, request: feePayerRequest })
 
         expect(mocks.createClient).toHaveBeenCalledWith({
           chainId,
@@ -354,13 +408,22 @@ describe('server stake verification', () => {
           feePayer: feePayerAccount as never,
           name: methodName,
         })
-        const credential = makeCredential({
-          signature: '0x02aabbcc' as Hex,
-          type: 'transaction',
-        })
+        const credential = {
+          ...makeCredential({
+            signature: '0x02aabbcc' as Hex,
+            type: 'transaction',
+          }),
+          challenge: {
+            id: 'test-challenge-id',
+            intent: 'stake' as const,
+            method: methodName,
+            realm: 'test.example.com',
+            request: feePayerChallengeRequest,
+          },
+        }
 
         await expect(
-          method.verify({ credential, request: rawInput }),
+          method.verify({ credential, request: feePayerRequest }),
         ).rejects.toThrow(/fee payer.*requires.*tempo batch/i)
       })
 

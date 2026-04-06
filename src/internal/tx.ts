@@ -127,7 +127,7 @@ export const buildLegacyCalls = (parameters: {
   ] as const
 }
 
-/** Pull credentials store the serialized signed transaction in `payload.signature`. */
+/** Transaction credentials store the serialized signed transaction in `payload.signature`. */
 export const getSerializedTransaction = (payload: {
   signature: string
   type: 'transaction'
@@ -152,9 +152,9 @@ export const matchStakeCalls = (parameters: {
   const { beneficiary, calls, challenge, payer } = parameters
   const amount = BigInt(challenge.amount)
   const contract = challenge.contract as Address
-  const counterparty = challenge.methodDetails.counterparty as Address
+  const counterparty = challenge.counterparty as Address
   const token = challenge.token as Address
-  const stakeKey = challenge.methodDetails.stakeKey as Hex
+  const stakeKey = challenge.stakeKey as Hex
 
   if (calls.length === 1) {
     const [call] = calls
@@ -306,13 +306,22 @@ export const assertEscrowState = (
   assertMatch('escrow.principal', escrow.principal, value)
 }
 
-/** Reads `getEscrow` on-chain and verifies the stored escrow state in full. */
+/** Verifies the canonical active-state query, then checks the full escrow record. */
 export const assertEscrowOnChain = async (
   client: Client,
   contract: Address,
   stakeKey: Hex,
   parameters: EscrowVerificationParams,
 ) => {
+  const isActive = (await readContract(client, {
+    abi: MPPEscrowAbi,
+    address: contract,
+    args: [stakeKey, parameters.payer],
+    functionName: 'isEscrowActive',
+  })) as boolean
+
+  if (!isActive) throw new Error('Escrow is not active for the expected payer.')
+
   const escrow = (await readContract(client, {
     abi: MPPEscrowAbi,
     address: contract,

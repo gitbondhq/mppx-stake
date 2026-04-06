@@ -26,22 +26,38 @@ describe('stake method schema', () => {
   })
 
   it('parses a valid request into the wire shape', () => {
-    const parsed = PaymentRequest.fromMethod(stakeMethod, request)
+    const parsed = PaymentRequest.fromMethod(stakeMethod, {
+      ...request,
+      feePayer: true,
+    })
 
     expect(parsed).toEqual({
+      action: 'createEscrow',
       amount: '5000000',
+      counterparty: request.counterparty,
       contract: request.contract,
-      token: request.token,
       description: request.description,
       externalId: request.externalId,
+      policy: request.policy,
+      resource: request.resource,
+      stakeKey: request.stakeKey,
+      token: request.token,
       methodDetails: {
-        action: 'createEscrow',
         chainId: request.chainId,
-        counterparty: request.counterparty,
-        policy: request.policy,
-        resource: request.resource,
-        stakeKey: request.stakeKey,
+        feePayer: true,
       },
+    })
+  })
+
+  it('preserves an explicit feePayer=false flag', () => {
+    const parsed = PaymentRequest.fromMethod(stakeMethod, {
+      ...request,
+      feePayer: false,
+    })
+
+    expect(parsed.methodDetails).toEqual({
+      chainId: request.chainId,
+      feePayer: false,
     })
   })
 

@@ -66,19 +66,27 @@ export const createServerStake = (method: StakeMethod) => {
       async request({ request }) {
         const currentRequest = request as Record<string, unknown> & {
           chainId?: number | undefined
-          submission?: 'push' | 'pull' | undefined
+          feePayer?: boolean | undefined
         }
         const chainId = currentRequest.chainId ?? parameters.chainId
         if (!chainId) throw new Error('No chainId configured for stake route.')
         const preset = getNetworkPresetByChainId(chainId)
-        const submission =
-          currentRequest.submission ??
-          (feePayer || feePayerUrl
+        const defaultFeePayer =
+          feePayer || feePayerUrl
             ? preset.capabilities.supportsFeePayer
-              ? 'pull'
-              : 'push'
-            : 'push')
-        return { ...currentRequest, chainId, submission }
+              ? true
+              : undefined
+            : undefined
+
+        return {
+          ...currentRequest,
+          chainId,
+          ...(currentRequest.feePayer !== undefined
+            ? { feePayer: currentRequest.feePayer }
+            : defaultFeePayer !== undefined
+              ? { feePayer: defaultFeePayer }
+              : {}),
+        }
       },
 
       async verify({ credential, request }) {
@@ -91,13 +99,16 @@ export const createServerStake = (method: StakeMethod) => {
         assertRequestMatches(currentRequest, challengeRequest)
 
         const typed = toTypedRequest(challengeRequest)
+        const activeFeePayer = typed.feePayer === true ? feePayer : undefined
+        const activeFeePayerUrl =
+          typed.feePayer === true ? feePayerUrl : undefined
         const { beneficiary, payer } = resolvePayerAndBeneficiary(
           challengeRequest,
           credential.source,
         )
         const client = createClient({
           chainId: typed.chainId,
-          feePayerUrl,
+          feePayerUrl: activeFeePayerUrl,
         })
 
         const verifyParams = {
@@ -116,6 +127,11 @@ export const createServerStake = (method: StakeMethod) => {
         let receipt
 
         const payload = credential.payload as StakeCredentialPayload
+
+        if (typed.feePayer === true && payload.type === 'hash')
+          throw new Error(
+            'Hash credentials are not allowed when methodDetails.feePayer is true.',
+          )
 
         if (payload.type === 'hash')
           receipt = await getTransactionReceipt(client, {
@@ -141,11 +157,11 @@ export const createServerStake = (method: StakeMethod) => {
             })
 
             const feeToken = transaction.feeToken as Address | undefined
-            const finalTransaction = feePayer
+            const finalTransaction = activeFeePayer
               ? await cosignWithFeePayer(
                   client,
                   serializedTransaction,
-                  feePayer,
+                  activeFeePayer,
                   feeToken,
                 )
               : serializedTransaction
@@ -153,7 +169,7 @@ export const createServerStake = (method: StakeMethod) => {
             receipt = await submitRawSync(client, finalTransaction)
           } else {
             // Standard EIP-1559 transaction (single-call permit flow).
-            if (feePayer)
+            if (activeFeePayer)
               throw new Error(
                 'Fee payer cosigning requires a Tempo batch transaction.',
               )
@@ -205,23 +221,29 @@ const assertRequestMatches = (
   challengeRequest: StakeChallengeRequest,
 ) => {
   const pairs = [
+    [
+      'action',
+      currentRequest.action ?? 'createEscrow',
+      challengeRequest.action ?? 'createEscrow',
+    ],
     ['amount', currentRequest.amount, challengeRequest.amount],
+    [
+      'counterparty',
+      currentRequest.counterparty,
+      challengeRequest.counterparty,
+    ],
     ['contract', currentRequest.contract, challengeRequest.contract],
+    [
+      'feePayer',
+      currentRequest.methodDetails.feePayer === true,
+      challengeRequest.methodDetails.feePayer === true,
+    ],
+    ['stakeKey', currentRequest.stakeKey, challengeRequest.stakeKey],
     ['token', currentRequest.token, challengeRequest.token],
     [
       'chainId',
       currentRequest.methodDetails.chainId,
       challengeRequest.methodDetails.chainId,
-    ],
-    [
-      'counterparty',
-      currentRequest.methodDetails.counterparty,
-      challengeRequest.methodDetails.counterparty,
-    ],
-    [
-      'stakeKey',
-      currentRequest.methodDetails.stakeKey,
-      challengeRequest.methodDetails.stakeKey,
     ],
   ] as const
 
@@ -229,8 +251,8 @@ const assertRequestMatches = (
     if (String(expected) !== String(received))
       throw new Error(`Challenge ${label} does not match this route.`)
 
-  const currentBeneficiary = currentRequest.methodDetails.beneficiary
-  const challengeBeneficiary = challengeRequest.methodDetails.beneficiary
+  const currentBeneficiary = currentRequest.beneficiary
+  const challengeBeneficiary = challengeRequest.beneficiary
   if (
     !currentBeneficiary !== !challengeBeneficiary ||
     (currentBeneficiary &&
