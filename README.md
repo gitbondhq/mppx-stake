@@ -1,4 +1,4 @@
-# `@gitbondhq/mppx-escrow`
+# `@gitbondhq/mppx-stake`
 
 Minimal escrow stake method support for `mppx`.
 
@@ -13,22 +13,22 @@ It does not try to own the full MPP method bundle. If you need `charge`,
 
 ## Entry points
 
-- `@gitbondhq/mppx-escrow`
+- `@gitbondhq/mppx-stake`
   - exports `Methods.stake`
   - exports `MPPEscrowAbi`
   - exports network preset helpers like `defaultNetwork` and `getNetworkPreset`
-- `@gitbondhq/mppx-escrow/client`
+- `@gitbondhq/mppx-stake/client`
   - exports `stake(...)`
-- `@gitbondhq/mppx-escrow/server`
+- `@gitbondhq/mppx-stake/server`
   - exports `stake(...)`
-- `@gitbondhq/mppx-escrow/abi`
+- `@gitbondhq/mppx-stake/abi`
   - exports `MPPEscrowAbi`
 
 ## Client usage
 
 ```ts
 import { Mppx, tempo } from 'mppx/client'
-import { stake } from '@gitbondhq/mppx-escrow/client'
+import { stake } from '@gitbondhq/mppx-stake/client'
 
 const mppx = Mppx.create({
   methods: [[...tempo({ account }), stake({ account })]],
@@ -38,7 +38,7 @@ const mppx = Mppx.create({
 If you only want the escrow method:
 
 ```ts
-import { stake } from '@gitbondhq/mppx-escrow/client'
+import { stake } from '@gitbondhq/mppx-stake/client'
 
 const method = stake({ account })
 ```
@@ -47,7 +47,7 @@ const method = stake({ account })
 
 ```ts
 import { Mppx, tempo } from 'mppx/server'
-import { stake } from '@gitbondhq/mppx-escrow/server'
+import { stake } from '@gitbondhq/mppx-stake/server'
 
 const mppx = Mppx.create({
   methods: [
@@ -64,7 +64,7 @@ const mppx = Mppx.create({
 If you only want the escrow method:
 
 ```ts
-import { stake } from '@gitbondhq/mppx-escrow/server'
+import { stake } from '@gitbondhq/mppx-stake/server'
 
 const method = stake({
   chainId: 42431,
