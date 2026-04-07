@@ -32,7 +32,6 @@ describe('stake method schema', () => {
     })
 
     expect(parsed).toEqual({
-      action: 'createEscrow',
       amount: '5000000',
       counterparty: request.counterparty,
       contract: request.contract,

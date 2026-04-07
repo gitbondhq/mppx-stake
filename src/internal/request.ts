@@ -8,7 +8,6 @@ export const baseUnitAmount = () =>
   z.string().check(z.regex(/^\d+$/, 'Invalid base-unit amount'))
 
 export type TypedStakeRequest = {
-  action: 'createEscrow'
   amount: bigint
   beneficiary?: Address | undefined
   chainId: number
@@ -26,7 +25,6 @@ export type TypedStakeRequest = {
 export const toTypedRequest = (
   request: StakeChallengeRequest,
 ): TypedStakeRequest => ({
-  action: request.action ?? 'createEscrow',
   amount: BigInt(request.amount),
   beneficiary: request.beneficiary
     ? (request.beneficiary as Address)

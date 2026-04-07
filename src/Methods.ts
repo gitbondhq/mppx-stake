@@ -31,7 +31,6 @@ export const stake = ({ name }: StakeMethodParameters) =>
       },
       request: z.pipe(
         z.object({
-          action: z.optional(z.literal('createEscrow')),
           amount: baseUnitAmount(),
           beneficiary: z.optional(z.address()),
           chainId: z.number(),
@@ -47,7 +46,6 @@ export const stake = ({ name }: StakeMethodParameters) =>
         }),
         z.transform(
           ({
-            action = 'createEscrow',
             amount,
             beneficiary,
             chainId,
@@ -61,7 +59,6 @@ export const stake = ({ name }: StakeMethodParameters) =>
             stakeKey,
             token,
           }) => ({
-            action,
             amount,
             ...(beneficiary !== undefined ? { beneficiary } : {}),
             contract,

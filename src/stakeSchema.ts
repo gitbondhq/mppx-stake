@@ -1,7 +1,6 @@
 import type { Address, Hex } from 'viem'
 
 export type StakeChallengeRequest = {
-  action?: 'createEscrow' | undefined
   amount: string
   beneficiary?: Address | undefined
   contract: Address
@@ -19,7 +18,6 @@ export type StakeChallengeRequest = {
 }
 
 export type StakeMethodInput = {
-  action?: 'createEscrow' | undefined
   amount: string
   beneficiary?: Address | undefined
   chainId: number
@@ -42,7 +40,6 @@ export const toStakeMethodInput = (
   request: StakeChallengeRequest,
 ): StakeMethodInput => {
   return {
-    ...(request.action !== undefined ? { action: request.action } : {}),
     amount: request.amount,
     ...(request.beneficiary !== undefined
       ? { beneficiary: request.beneficiary }

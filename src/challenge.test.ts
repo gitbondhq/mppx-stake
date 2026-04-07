@@ -70,7 +70,6 @@ describe('stake challenge helpers', () => {
     const updated = withStakeFeePayer(original, false)
 
     expect(updated.request.methodDetails.feePayer).toBe(false)
-    expect(updated.request.action).toBe(original.request.action)
     expect(updated.request.amount).toBe(original.request.amount)
     expect(updated.request.counterparty).toBe(original.request.counterparty)
     expect(updated.request.contract).toBe(original.request.contract)

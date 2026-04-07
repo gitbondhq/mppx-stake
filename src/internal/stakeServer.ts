@@ -221,11 +221,6 @@ const assertRequestMatches = (
   challengeRequest: StakeChallengeRequest,
 ) => {
   const pairs = [
-    [
-      'action',
-      currentRequest.action ?? 'createEscrow',
-      challengeRequest.action ?? 'createEscrow',
-    ],
     ['amount', currentRequest.amount, challengeRequest.amount],
     [
       'counterparty',
