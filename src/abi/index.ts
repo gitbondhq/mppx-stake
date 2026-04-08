@@ -1,1 +1,1 @@
-export { MPPEscrowAbi } from './MPPEscrow.js'
+export * from './escrow.js'

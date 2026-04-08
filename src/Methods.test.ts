@@ -5,7 +5,6 @@ import * as Methods from './Methods.js'
 
 const request = {
   amount: '5000000',
-  chainId: 42431,
   contract: '0x1111111111111111111111111111111111111111',
   counterparty: '0x2222222222222222222222222222222222222222',
   token: '0x20C0000000000000000000000000000000000000',
@@ -13,51 +12,19 @@ const request = {
   externalId: 'github:owner/repo:pr:1',
   policy: 'repo-pr-v1',
   resource: 'owner/repo#1',
-  stakeKey:
-    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  scope: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  methodDetails: {
+    chainId: 42431,
+  },
 } as const
 
-const stakeMethod = Methods.stake({ name: 'tempo' })
+const stakeMethod = Methods.createStakeMethod({ name: 'tempo' })
 
 describe('stake method schema', () => {
-  it('exposes the expected method identity', () => {
-    expect(stakeMethod.name).toBe('tempo')
-    expect(stakeMethod.intent).toBe('stake')
-  })
+  it('parses a valid request', () => {
+    const parsed = PaymentRequest.fromMethod(stakeMethod, request)
 
-  it('parses a valid request into the wire shape', () => {
-    const parsed = PaymentRequest.fromMethod(stakeMethod, {
-      ...request,
-      feePayer: true,
-    })
-
-    expect(parsed).toEqual({
-      amount: '5000000',
-      counterparty: request.counterparty,
-      contract: request.contract,
-      description: request.description,
-      externalId: request.externalId,
-      policy: request.policy,
-      resource: request.resource,
-      stakeKey: request.stakeKey,
-      token: request.token,
-      methodDetails: {
-        chainId: request.chainId,
-        feePayer: true,
-      },
-    })
-  })
-
-  it('preserves an explicit feePayer=false flag', () => {
-    const parsed = PaymentRequest.fromMethod(stakeMethod, {
-      ...request,
-      feePayer: false,
-    })
-
-    expect(parsed.methodDetails).toEqual({
-      chainId: request.chainId,
-      feePayer: false,
-    })
+    expect(parsed).toEqual(request)
   })
 
   it('rejects decimal amounts', () => {
@@ -66,36 +33,35 @@ describe('stake method schema', () => {
     ).toThrow(/base-unit amount/i)
   })
 
-  it('rejects an invalid stake key', () => {
+  it('rejects an invalid scope', () => {
     expect(() =>
       PaymentRequest.fromMethod(stakeMethod, {
         ...request,
-        stakeKey: '0x1234',
+        scope: '0x1234',
       }),
     ).toThrow(/hash/i)
   })
 
-  it('accepts hash and transaction payload variants', () => {
+  it('accepts a scope-active credential payload', () => {
     expect(
+      stakeMethod.schema.credential.payload.parse({
+        signature:
+          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc1b',
+        type: 'scope-active',
+      }),
+    ).toEqual({
+      signature:
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc1b',
+      type: 'scope-active',
+    })
+  })
+
+  it('rejects unknown credential payload variants', () => {
+    expect(() =>
       stakeMethod.schema.credential.payload.parse({
         hash: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         type: 'hash',
       }),
-    ).toEqual({
-      hash: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-      type: 'hash',
-    })
-
-    expect(
-      stakeMethod.schema.credential.payload.parse({
-        signature:
-          '0x76aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        type: 'transaction',
-      }),
-    ).toEqual({
-      signature:
-        '0x76aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      type: 'transaction',
-    })
+    ).toThrow()
   })
 })

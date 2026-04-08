@@ -2,8 +2,8 @@ import { Challenge } from 'mppx'
 import { describe, expect, it } from 'vitest'
 
 import type { StakeChallenge } from './challenge.js'
-import { parseStakeChallenge, withStakeFeePayer } from './challenge.js'
-import { stake as createStakeMethod } from './Methods.js'
+import { parseStakeChallenge } from './challenge.js'
+import { createStakeMethod } from './Methods.js'
 
 const methodName = 'tempo'
 const stakeMethod = createStakeMethod({ name: methodName })
@@ -11,7 +11,6 @@ const stakeMethod = createStakeMethod({ name: methodName })
 const request = {
   amount: '5000000',
   beneficiary: '0x3333333333333333333333333333333333333333',
-  chainId: 42431,
   contract: '0x1111111111111111111111111111111111111111',
   counterparty: '0x2222222222222222222222222222222222222222',
   token: '0x20C0000000000000000000000000000000000000',
@@ -19,19 +18,18 @@ const request = {
   externalId: 'github:owner/repo:pr:1',
   policy: 'repo-pr-v1',
   resource: 'owner/repo#1',
-  stakeKey:
-    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  scope: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  methodDetails: {
+    chainId: 42431,
+  },
 } as const
 
 describe('stake challenge helpers', () => {
-  it('parses a stake challenge object into the shared typed request shape', () => {
+  it('parses a stake challenge object', () => {
     const original = Challenge.fromMethod(stakeMethod, {
       id: 'challenge-1',
       realm: 'api.example.com',
-      request: {
-        ...request,
-        feePayer: true,
-      },
+      request,
     }) as StakeChallenge
 
     expect(
@@ -61,28 +59,18 @@ describe('stake challenge helpers', () => {
     ).toEqual(original)
   })
 
-  it('rewrites only the feePayer flag', () => {
-    const original = Challenge.fromMethod(stakeMethod, {
-      id: 'challenge-3',
-      realm: 'api.example.com',
-      request,
-    }) as StakeChallenge
-    const updated = withStakeFeePayer(original, false)
+  it('rejects a challenge whose method does not match', () => {
+    const original = Challenge.fromMethod(
+      createStakeMethod({ name: 'other' }),
+      {
+        id: 'challenge-3',
+        realm: 'api.example.com',
+        request,
+      },
+    ) as StakeChallenge
 
-    expect(updated.request.methodDetails.feePayer).toBe(false)
-    expect(updated.request.amount).toBe(original.request.amount)
-    expect(updated.request.counterparty).toBe(original.request.counterparty)
-    expect(updated.request.contract).toBe(original.request.contract)
-    expect(updated.request.policy).toBe(original.request.policy)
-    expect(updated.request.resource).toBe(original.request.resource)
-    expect(updated.request.stakeKey).toBe(original.request.stakeKey)
-    expect(updated.request.token).toBe(original.request.token)
-    expect(updated.request.methodDetails.chainId).toBe(
-      original.request.methodDetails.chainId,
+    expect(() => parseStakeChallenge(original, { methodName })).toThrow(
+      /Expected a tempo\/stake challenge/,
     )
-    expect(updated.id).toBe(original.id)
-    expect(updated.method).toBe(original.method)
-    expect(updated.intent).toBe(original.intent)
-    expect(updated.realm).toBe(original.realm)
   })
 })
