@@ -1,9 +1,7 @@
 import type { Chain, Client, Transport } from 'viem'
-import { createClient as viemCreateClient, http } from 'viem'
+import { createClient, http } from 'viem'
 
 import { getChain } from '../chains.js'
-
-export type EvmClient = Client<Transport, Chain>
 
 /**
  * Creates a read-only viem client for a supported chain. The package only ever
@@ -11,9 +9,9 @@ export type EvmClient = Client<Transport, Chain>
  * no fee-payer or signing plumbing here — consumers that need to send
  * transactions own that path.
  */
-export const createClient = (chainId: number): EvmClient => {
+export const createEvmClient = (chainId: number): Client<Transport, Chain> => {
   const chain = getChain(chainId)
   const url = chain.rpcUrls.default.http[0]
   if (!url) throw new Error(`No default RPC URL configured for ${chain.name}.`)
-  return viemCreateClient({ chain, transport: http(url) }) as EvmClient
+  return createClient({ chain, transport: http(url) })
 }

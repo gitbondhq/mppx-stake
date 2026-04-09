@@ -6,7 +6,7 @@ import type {
   StakeChallengeRequest,
   StakeCredentialPayload,
 } from '../method.js'
-import { createClient } from '../shared/evmClient.js'
+import { createEvmClient } from '../shared/evmClient.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
 import { assertSourceDidMatches, resolveBeneficiary } from '../shared/source.js'
 import { assertEscrowOnChain } from './escrowState.js'
@@ -82,7 +82,7 @@ export const createStakeServer = (method: StakeMethod) => {
 
         assertSourceDidMatches(challengeChainId, credential.source, recovered)
 
-        const client = createClient(challengeChainId)
+        const client = createEvmClient(challengeChainId)
         await assertEscrowOnChain(client, challengeRequest.contract, {
           beneficiary: recovered,
           counterparty: challengeRequest.counterparty,

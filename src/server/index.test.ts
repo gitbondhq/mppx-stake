@@ -55,11 +55,11 @@ const challengeRequest = PaymentRequest.fromMethod(stakeMethod, rawInput)
 
 const mocks = vi.hoisted(() => ({
   assertEscrowOnChain: vi.fn().mockResolvedValue(undefined),
-  createClient: vi.fn(() => ({})),
+  createEvmClient: vi.fn(() => ({})),
 }))
 
 vi.mock('../shared/evmClient.js', () => ({
-  createClient: mocks.createClient,
+  createEvmClient: mocks.createEvmClient,
 }))
 
 vi.mock('./escrowState.js', async importOriginal => ({
@@ -188,7 +188,7 @@ describe('server stake', () => {
         status: 'success',
         timestamp: expect.any(String),
       })
-      expect(mocks.createClient).toHaveBeenCalledWith(chainId)
+      expect(mocks.createEvmClient).toHaveBeenCalledWith(chainId)
       expect(mocks.assertEscrowOnChain).toHaveBeenCalledWith(
         {},
         contract,
