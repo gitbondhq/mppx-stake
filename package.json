@@ -1,5 +1,5 @@
 {
-  "name": "@gitbondhq/mppx-escrow",
+  "name": "@gitbondhq/mppx-stake",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -7,12 +7,17 @@
   "files": [
     "README.md",
     "dist",
-    "src"
+    "src",
+    "!dist/.tsbuildinfo"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./abi": {
+      "types": "./dist/abi/index.d.ts",
+      "default": "./dist/abi/index.js"
     },
     "./client": {
       "types": "./dist/client/index.d.ts",
@@ -21,30 +26,24 @@
     "./server": {
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"
-    },
-    "./tempo": {
-      "types": "./dist/tempo/index.d.ts",
-      "default": "./dist/tempo/index.js"
-    },
-    "./abi": {
-      "types": "./dist/abi/index.d.ts",
-      "default": "./dist/abi/index.js"
     }
   },
   "engines": {
     "node": ">=24.0.0"
   },
+  "packageManager": "npm@11.10.0",
   "scripts": {
+    "preinstall": "npx -y only-allow npm",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.json",
+    "check-types": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
     "fix": "eslint . --fix && tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "mppx": "^0.4.11",
-    "ox": "^0.14.7",
-    "viem": "^2.47.6",
+    "mppx": "^0.5.9",
+    "viem": "^2.47.11",
     "zod": "^4.3.6"
   },
   "devDependencies": {

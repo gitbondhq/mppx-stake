@@ -1,0 +1,61 @@
+import { Credential, Method } from 'mppx'
+import type { Account } from 'viem'
+import { isAddressEqual } from 'viem'
+
+import { getChain } from '../chains.js'
+import { brandStakeRequest, type StakeMethod } from '../method.js'
+import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
+
+export type StakeClientParameters = {
+  /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
+  beneficiaryAccount: Account
+}
+
+/**
+ * Turns the shared stake schema into a client method that signs a typed-data
+ * scope-active proof for an existing on-chain escrow.
+ *
+ * The credential round-trip never touches chain state — the consumer is
+ * responsible for having created the escrow before the credential is signed.
+ */
+export const createStakeClient = (method: StakeMethod) => {
+  return ({ beneficiaryAccount }: StakeClientParameters) => {
+    return Method.toClient(method, {
+      async createCredential({ challenge }) {
+        const request = brandStakeRequest(challenge.request)
+        const chainId = request.methodDetails.chainId
+
+        // Surface unsupported chains here rather than waiting for the server.
+        getChain(chainId)
+
+        if (
+          request.beneficiary &&
+          !isAddressEqual(request.beneficiary, beneficiaryAccount.address)
+        )
+          throw new Error(
+            'Challenge beneficiary does not match the beneficiary signing account.',
+          )
+
+        const beneficiary = request.beneficiary ?? beneficiaryAccount.address
+
+        const signature = await signScopeActiveProof(beneficiaryAccount, {
+          amount: request.amount,
+          beneficiary,
+          chainId,
+          challengeId: challenge.id,
+          contract: request.contract,
+          counterparty: request.counterparty,
+          expires: challenge.expires,
+          scope: request.scope,
+          token: request.token,
+        })
+
+        return Credential.serialize({
+          challenge,
+          payload: { signature, type: 'scope-active' },
+          source: `did:pkh:eip155:${chainId}:${beneficiaryAccount.address}`,
+        })
+      },
+    })
+  }
+}

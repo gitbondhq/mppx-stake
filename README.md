@@ -1,270 +1,267 @@
-# `@gitbondhq/mppx-escrow`
+# `@gitbondhq/mppx-stake`
 
-MPP payment method for on-chain escrow on Tempo. Client and server TypeScript
-SDK for creating, verifying, and settling escrow stakes via the GitBond smart
-contract.
+An [`mppx`](https://github.com/wevm/mppx) stake method that proves an
+[MPPEscrow](https://github.com/gitbondhq/mpp-stake-demo) is **already active**
+for a given scope and beneficiary.
 
-It adds a new payment method, `method="tempo"` with `intent="stake"`, so both
-the client and server can share the same TypeScript implementation of:
+The credential is an off-chain EIP-712 signature, never a transaction. The
+server verifies it by recovering the signer and reading
+`isEscrowActive` / `getActiveEscrow` from chain. **No gas is spent during
+the credential round-trip.**
 
-- the `tempo/stake` request schema
-- the credential schema for submitted or signed stake transactions
-- the client-side transaction construction logic
-- the server-side verification logic against the GitBond escrow contract
-
-## Entry Points
-
-- `@gitbondhq/mppx-escrow`
-  Exports all core `mppx` primitives, `Methods.stake`, and `GitBondEscrowAbi`.
-- `@gitbondhq/mppx-escrow/client`
-  Exports `Mppx`, `Transport`, `Expires`, `tempo(...)`, and `stake(...)` for
-  browser or client-side integrations.
-- `@gitbondhq/mppx-escrow/server`
-  Exports `Mppx`, server helpers from `mppx/server`, plus `tempo(...)` and
-  `stake(...)` for API integrations.
-- `@gitbondhq/mppx-escrow/tempo`
-  Exposes the shared `Methods.stake` schema directly.
-- `@gitbondhq/mppx-escrow/abi`
-  Exposes `GitBondEscrowAbi`.
-
-## What `tempo/stake` Means
-
-The method represents "create an escrow stake on Tempo."
-
-The request shape is:
-
-```ts
-type StakeRequest = {
-  amount: string
-  beneficiary?: `0x${string}`
-  chainId: number
-  contract: `0x${string}`
-  counterparty: `0x${string}`
-  currency: `0x${string}`
-  description?: string
-  externalId?: string
-  policy?: string
-  resource?: string
-  stakeKey: `0x${string}`
-  submission?: 'push' | 'pull'
-}
+```
+client                                              server
+  │  GET /resource                                    │
+  │ ────────────────────────────────────────────────► │
+  │  402 + stake challenge                            │
+  │ ◄──────────────────────────────────────────────── │
+  │                                                   │
+  │  signTypedData over { challengeId, expires,       │
+  │                       scope, beneficiary }        │
+  │                                                   │
+  │  retry with credential                            │
+  │ ────────────────────────────────────────────────► │
+  │                                                   │
+  │                              recover signer       │
+  │                              read isEscrowActive  │
+  │                              read getActiveEscrow │
+  │                              assert state         │
+  │                                                   │
+  │  200 + receipt                                    │
+  │ ◄──────────────────────────────────────────────── │
 ```
 
-Wire-format notes:
+## ⚠️ What this package does **not** do
 
-- `amount` must be a base-unit integer string, not a decimal string.
-- `stakeKey` is the escrow key and must be a 32-byte hex hash.
-- `externalId`, `policy`, and `resource` are metadata fields for the higher
-  level GitBond policy layer.
-- `beneficiary` is optional. If omitted, verification treats the payer as the
-  beneficiary.
+It does not create escrows. It only attests that one already exists. Your
+escrow must be funded on chain **before** the credential round-trip — if it
+isn't, `assertEscrowOnChain` will reject the credential with `Escrow is not
+active for the expected beneficiary.`
 
-The credential payload has two variants:
+Anything that touches gas — escrow funding, fee-payer cosigning, transaction
+submission — is the consumer's responsibility. The package re-exports
+[`escrowAbi`](#abi) so you can build that path with viem directly.
 
-```ts
-type StakeCredentialPayload =
-  | { type: 'hash'; hash: `0x${string}` }
-  | { type: 'transaction'; signature: `0x${string}` }
+## Install
+
+```sh
+npm install @gitbondhq/mppx-stake mppx viem
 ```
 
-- `hash` means the client already submitted the stake transaction (push).
-- `transaction` means the client signed a transaction for the server to inspect
-  and optionally submit (pull). The signed transaction may be either a Tempo
-  batch transaction (`0x76` prefix) or a standard EIP-1559 transaction (`0x02`
-  prefix). See [Embedded Wallet Support](#embedded-wallet-support) for details.
+`mppx` and `viem` are peer-adjacent — install them yourself so you control
+the versions.
 
-## Client Integration
+## Server
 
-Typical setup:
-
-```ts
-import { Mppx, tempo } from '@gitbondhq/mppx-escrow/client'
-
-Mppx.create({
-  methods: [tempo({ account })],
-})
-```
-
-Low-level export:
+Configure a stake method, plug it into `Mppx.create`, and mount the handler
+on your route. Per-route fields (`amount`, `scope`, anything else specific
+to that resource) are passed at handler-construction time.
 
 ```ts
-import { stake } from '@gitbondhq/mppx-escrow/client'
-
-const method = stake({ account })
-```
-
-Client parameters:
-
-| Option | Type | Purpose |
-| --- | --- | --- |
-| `account` | `viem` account or address | Default payer account used to create stake credentials |
-| `provider` | `EIP1193Provider` | Optional wallet provider for signing (see [Embedded Wallet Support](#embedded-wallet-support)) |
-| `feeToken` | address | Optional fee token forwarded to Tempo transaction submission |
-
-Client behavior:
-
-- `tempo(...)` returns the upstream Tempo methods plus this package's `stake`
-  method.
-- The client reads the `submission` field from the server's challenge to decide
-  whether to push or pull. If the server omits it, the client defaults to push.
-- `submission: 'push'` submits calls and returns a credential with
-  `payload.type = 'hash'`. Without a provider, calls are batched via
-  `sendCallsSync`. With a provider, each call is signed and submitted
-  individually as a standard EIP-1559 transaction.
-- `submission: 'pull'` signs a transaction request and returns a credential with
-  `payload.type = 'transaction'`. Without a provider, signing uses viem's
-  `signTransaction`, producing a Tempo batch transaction. With a provider,
-  signing uses `eth_signTransaction`, producing a standard EIP-1559 transaction.
-  Pull mode with a provider requires a single call (permit flow); multi-call
-  legacy transactions will throw.
-- Transport policy (permit vs legacy) is auto-detected by probing the token's
-  `nonces()` function on-chain. If the token supports EIP-2612 permit, a single
-  `createEscrowWithPermit` call is built. Otherwise, `approve` plus
-  `createEscrow` is used. The result is cached per chain+token pair.
-
-## Server Integration
-
-Typical setup:
-
-```ts
-import { Mppx, tempo } from '@gitbondhq/mppx-escrow/server'
+import { serverStake } from '@gitbondhq/mppx-stake/server'
+import { Mppx } from 'mppx/server'
+import { keccak256, toHex } from 'viem'
 
 const mppx = Mppx.create({
   methods: [
-    tempo({
-      chainId: 42431,
-      contract: '0x1234...',
-      currency: '0x20C0000000000000000000000000000000000000',
+    serverStake({
+      name: 'tempo',
+      chainId: 42431, // tempoModerato
+      contract: '0xe1c4d3dce17bc111181ddf716f75bae49e61a336',
+      counterparty: '0x2222222222222222222222222222222222222222',
+      token: '0x20C0000000000000000000000000000000000000',
+      description: 'Bond required to merge',
     }),
   ],
-  secretKey: process.env.MPP_SECRET_KEY!,
+  secretKey: process.env.MPP_SECRET_KEY,
 })
+
+// In your route handler:
+const handler = Mppx.toNodeListener(
+  mppx.stake({
+    amount: '20000', // 0.02 USDC, base units
+    scope: keccak256(toHex(`bond:${owner}/${repo}#${pr}`)),
+    externalId: `github:${owner}/${repo}#${pr}`,
+    resource: `${owner}/${repo}#${pr}`,
+  }),
+)
+
+await handler(req, res)
 ```
 
-Example route usage:
+The first call returns `402` with a stake challenge. The second call (same
+URL, with the credential in `Authorization`) runs verification: HMAC-binds
+the challenge, recovers the typed-data signer, validates the source DID,
+reads chain state, and returns the receipt.
+
+### Server parameters
+
+| Parameter          | Type                    | Required | Notes                                                     |
+| ------------------ | ----------------------- | -------- | --------------------------------------------------------- |
+| `name`             | `string`                | yes      | Method name shared with the client (e.g. `'tempo'`).      |
+| `chainId`          | `number`                | yes      | Must be in [`supportedChains`](#chains).                  |
+| `rpcUrl`           | `string`                | no       | Override viem's default public RPC (use a paid endpoint). |
+| `contract`         | `Address`               | no       | Default escrow contract for this route.                   |
+| `counterparty`     | `Address`               | no       | Default counterparty.                                     |
+| `token`            | `Address`               | no       | Default ERC-20 token.                                     |
+| `description`      | `string`                | no       | Shown to the client in the challenge UI.                  |
+| `consumeChallenge` | `(id) => Promise<void>` | no       | Replay-protection hook — see below. Stateless by default. |
+
+`contract`, `counterparty`, and `token` are **defaults** — they can be
+overridden per-route. Anything you don't set in the configuration must be
+passed at the call site.
+
+### Replay protection
+
+`verify` is **stateless by default** — a captured credential can be replayed
+against the same route until its `expires` lapses. For production, plug in
+the `consumeChallenge` hook with a TTL'd store keyed on the challenge id:
 
 ```ts
-const result = await mppx.tempo.stake({
-  amount: '5000000',
-  counterparty: '0xabcd...',
-  externalId: 'github:owner/repo:pr:1',
-  policy: 'repo-pr-v1',
-  resource: 'owner/repo#1',
-  stakeKey:
-    '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-})(request)
+import { createClient } from 'redis'
 
-if (result.status === 402) return result.challenge
-return result.withReceipt(Response.json({ ok: true }))
-```
+const redis = createClient({ url: process.env.REDIS_URL })
+await redis.connect()
 
-Low-level export:
-
-```ts
-import { stake } from '@gitbondhq/mppx-escrow/server'
-
-const method = stake({
+serverStake({
+  name: 'tempo',
   chainId: 42431,
-  contract: '0x1234...',
-  currency: '0x20C0000000000000000000000000000000000000',
+  contract: '0x...',
+  consumeChallenge: async (challengeId) => {
+    // Atomic claim — `SET NX` returns null if the key already exists.
+    const claimed = await redis.set(
+      `mppx:stake:challenge:${challengeId}`,
+      '1',
+      { NX: true, EX: 600 }, // 10 min, > the challenge `expires` window
+    )
+    if (!claimed) throw new Error('Challenge already consumed.')
+  },
 })
 ```
 
-Server parameters:
+The hook fires after HMAC binding and signature recovery succeed (so junk
+credentials don't burn challenge ids) but **before** the on-chain read (so
+a transient RPC failure leaves the slot consumed rather than reusable).
+Use any atomic claim primitive your store supports — Redis `SET NX`,
+Postgres `INSERT ... ON CONFLICT`, DynamoDB conditional writes — so two
+concurrent verifies of the same credential can't both succeed. Throw to
+reject; the verify call will surface your error to the client.
 
-| Option | Type | Purpose |
-| --- | --- | --- |
-| `chainId` | number | Default chain for the stake route |
-| `contract` | address | Escrow contract address |
-| `counterparty` | address | Default counterparty, if route-level |
-| `currency` | address | Stake token |
-| `beneficiary` | address | Optional route-level beneficiary |
-| `description` | string | Optional route-level payment description |
-| `feePayer` | `viem` account or URL | Optional fee payer for pull transactions. Only works with clients that sign Tempo batch transactions (`0x76`). Clients using an EIP-1193 provider (e.g. Privy) produce standard `0x02` transactions which cannot be cosigned, and verification will fail. |
+## Client
 
-Server behavior:
-
-- `request()` fills `chainId` from the route config when omitted at call time.
-  It also sets the `submission` field in the challenge: `'pull'` when a fee
-  payer is configured, `'push'` otherwise. This tells the client whether to
-  submit the transaction itself or hand it to the server.
-- `verify()` first ensures the request being verified still matches the
-  original challenge for amount, contract, currency, chain, counterparty,
-  beneficiary, and `stakeKey`.
-- The payer is derived from the credential source DID.
-- If the credential is a `hash`, the server:
-  - fetches the receipt
-  - checks for a matching `EscrowCreated` event
-  - reads `getEscrow(stakeKey)` and verifies final escrow state
-- If the credential is a signed `transaction`, the server:
-  - if Tempo batch (`0x76`): deserializes the Tempo transaction, matches the
-    call sequence, optionally cosigns with the fee payer, and submits
-  - if standard EIP-1559 (`0x02`): parses the transaction, extracts `to`/`data`
-    as a single call, validates it, and submits directly (fee payer cosigning is
-    not available for standard transactions)
-  - in both cases: verifies the receipt and final escrow state
-
-## Embedded Wallet Support
-
-Embedded wallets like Privy only support standard EVM transaction types (0, 1,
-2, 4) and cannot sign Tempo's custom batch transaction type (`0x76`).
-Additionally, Tempo's RPC rejects standard EIP-1559 transactions sent via
-`eth_estimateGas` with type `0x2`, and does not allow native value transfers.
-
-To work around this, the client SDK accepts an optional `provider` parameter
-(any EIP-1193 compatible provider, such as Privy's `getEthereumProvider()`).
-When a provider is given, all signing goes through the provider's
-`eth_signTransaction`, producing standard EIP-1559 (`0x02`) transactions.
-
-For each call, the SDK:
-
-1. Uses viem's `prepareTransactionRequest` with the Tempo client for gas
-   estimation (Tempo's chain hooks handle the RPC format)
-2. Converts the prepared transaction to a plain hex-encoded parameter object
-3. Calls `eth_signTransaction` on the provider, which produces a standard
-   EIP-1559 signed transaction (`0x02` prefix)
-
-In push mode, each call is signed and submitted individually. Pull mode is not
-supported with a provider — it will throw, since pull requires fee payer
-cosigning which only works with Tempo batch transactions.
-
-The server accepts both Tempo batch (`0x76`) and standard EIP-1559 (`0x02`)
-transactions in the `transaction` credential type.
-
-Example with Privy:
+The client method takes a viem `Account` (or anything with
+`signTypedData`) and signs the proof when the server returns a 402. The
+account's address is what gets bound into the typed-data proof and the
+`did:pkh:eip155:{chainId}:{address}` source — so pass the **beneficiary's**
+signing account, not a payer or relayer.
 
 ```ts
-import { Mppx, tempo } from '@gitbondhq/mppx-escrow/client'
-import { toViemAccount } from '@privy-io/react-auth'
+import { clientStake } from '@gitbondhq/mppx-stake/client'
+import { Mppx } from 'mppx/client'
+import { privateKeyToAccount } from 'viem/accounts'
 
-const account = await toViemAccount({ wallet: embeddedWallet })
-const provider = await embeddedWallet.getEthereumProvider()
+const beneficiaryAccount = privateKeyToAccount(
+  process.env.PRIVATE_KEY as `0x${string}`,
+)
 
 const mppx = Mppx.create({
-  methods: [tempo({ account, provider })],
-  polyfill: false,
+  methods: [clientStake({ name: 'tempo', beneficiaryAccount })],
+})
+
+// `mppx.fetch` follows the 402 → credential → retry flow automatically.
+const res = await mppx.fetch('https://api.example.com/resource', {
+  method: 'POST',
 })
 ```
 
-Limitations:
+## Schema
 
-- Pull mode is not supported with a provider. The server sets `submission: 'pull'`
-  when a fee payer is configured, but fee payer cosigning requires Tempo batch
-  transactions (`0x76`) which providers cannot sign.
-- Fee payer cosigning is not available for standard EIP-1559 transactions. The
-  server will reject standard transactions when a fee payer is configured.
+The challenge request shape both sides agree on:
 
-## ABI Sync
-
-`GitBondEscrowAbi` is checked into `src/abi/GitBondEscrow.ts`. It is synced
-automatically via a GitHub Action in the escrow repo when the contract changes.
-
-## Development
-
-```sh
-npm run dev    # watch mode — recompile on change
-npm run build  # compile to dist/
-npm run lint   # eslint + type check
-npm run fix    # eslint --fix + type check
-npm test       # vitest
+```ts
+type StakeChallengeRequest = {
+  amount: string                       // base-unit integer string
+  beneficiary?: Address                // defaults to the credential signer
+  contract: Address                    // escrow contract
+  counterparty: Address                // the other party
+  description?: string
+  externalId?: string                  // application-side identifier
+  policy?: string                      // application-side policy tag
+  resource?: string                    // application-side resource tag
+  scope: Hex                           // bytes32, the per-resource identifier
+  token: Address                       // ERC-20 token address
+  methodDetails: { chainId: number }
+}
 ```
+
+The credential payload:
+
+```ts
+type StakeCredentialPayload = {
+  signature: Hex                       // EIP-712 ScopeActiveStake signature
+  type: 'scope-active'
+}
+```
+
+The `scope` is whatever bytes32 your application uses to uniquely identify
+"the thing being staked against" — typically `keccak256` of a stable
+identifier (PR number, document ID, session key, etc.).
+
+### Parsing a challenge from a 402 response
+
+```ts
+import { parseStakeChallenge } from '@gitbondhq/mppx-stake'
+
+const challenge = parseStakeChallenge(response, { methodName: 'tempo' })
+// challenge.request.scope, challenge.request.amount, ...
+```
+
+Useful when your client needs to render the challenge to a user before
+deciding whether to sign — e.g. showing the bond amount on a payment page.
+
+## Chains
+
+```ts
+import {
+  supportedChains,
+  isChainSupported,
+  getChain,
+} from '@gitbondhq/mppx-stake'
+```
+
+`supportedChains` is the read-only list of viem `Chain` definitions this
+package will create read-only clients for (mainnet, sepolia, base,
+baseSepolia, tempo, tempoModerato). `getChain(chainId)` throws on
+unsupported chains; `isChainSupported(chainId)` is the non-throwing
+predicate.
+
+Pass a `chainId` you already know is supported and the package handles
+the rest — there's no `NetworkPreset` or per-chain config object to wire.
+
+## ABI
+
+```ts
+import { escrowAbi } from '@gitbondhq/mppx-stake/abi'
+```
+
+The MPPEscrow ABI as a viem-compatible `as const`. Useful when you build
+the escrow-creation flow yourself with `viem/actions` (e.g. `writeContract`
+or `simulateContract` against `createEscrow`).
+
+## Wire compatibility
+
+The EIP-712 domain (`MPP Scope Active Stake / 1`), primary type
+(`ScopeActiveStake { challengeId, expires, scope, beneficiary, counterparty,
+token, amount }`), and DID source format (`did:pkh:eip155:{chainId}:{address}`)
+match [`mpp-stake-demo/packages/mppx-stake`](https://github.com/gitbondhq/mpp-stake-demo)
+byte-for-byte. Credentials produced against either package verify on
+either side.
+
+## Subpath exports
+
+| Entry                            | Use                                                              |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `@gitbondhq/mppx-stake`          | Schema, types, chain helpers, challenge parser.                  |
+| `@gitbondhq/mppx-stake/client`   | `clientStake()` — configures a client method that signs proofs.  |
+| `@gitbondhq/mppx-stake/server`   | `serverStake()` — configures a server method that verifies them. |
+| `@gitbondhq/mppx-stake/abi`      | `escrowAbi`.                                                     |
