@@ -9,7 +9,10 @@ import { escrowAbi } from '../abi/escrow.js'
  * from the bundled ABI so it tracks the contract automatically — no
  * hand-maintained field list to drift out of sync.
  */
-export type EscrowRecord = ReadContractReturnType<typeof escrowAbi, 'getActiveEscrow'>
+export type EscrowRecord = ReadContractReturnType<
+  typeof escrowAbi,
+  'getActiveEscrow'
+>
 
 export type EscrowVerificationParams = {
   beneficiary: Address
