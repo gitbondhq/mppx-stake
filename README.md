@@ -96,19 +96,56 @@ reads chain state, and returns the receipt.
 
 ### Server parameters
 
-| Parameter      | Type      | Required | Notes                                                       |
-| -------------- | --------- | -------- | ----------------------------------------------------------- |
-| `name`         | `string`  | yes      | Method name shared with the client (e.g. `'tempo'`).        |
-| `chainId`      | `number`  | yes      | Must be in [`supportedChains`](#chains).                    |
-| `rpcUrl`       | `string`  | no       | Override viem's default public RPC (use a paid endpoint).   |
-| `contract`     | `Address` | no       | Default escrow contract for this route.                     |
-| `counterparty` | `Address` | no       | Default counterparty.                                       |
-| `token`        | `Address` | no       | Default ERC-20 token.                                       |
-| `description`  | `string`  | no       | Shown to the client in the challenge UI.                    |
+| Parameter          | Type                    | Required | Notes                                                     |
+| ------------------ | ----------------------- | -------- | --------------------------------------------------------- |
+| `name`             | `string`                | yes      | Method name shared with the client (e.g. `'tempo'`).      |
+| `chainId`          | `number`                | yes      | Must be in [`supportedChains`](#chains).                  |
+| `rpcUrl`           | `string`                | no       | Override viem's default public RPC (use a paid endpoint). |
+| `contract`         | `Address`               | no       | Default escrow contract for this route.                   |
+| `counterparty`     | `Address`               | no       | Default counterparty.                                     |
+| `token`            | `Address`               | no       | Default ERC-20 token.                                     |
+| `description`      | `string`                | no       | Shown to the client in the challenge UI.                  |
+| `consumeChallenge` | `(id) => Promise<void>` | no       | Replay-protection hook — see below. Stateless by default. |
 
 `contract`, `counterparty`, and `token` are **defaults** — they can be
 overridden per-route. Anything you don't set in the configuration must be
 passed at the call site.
+
+### Replay protection
+
+`verify` is **stateless by default** — a captured credential can be replayed
+against the same route until its `expires` lapses. For production, plug in
+the `consumeChallenge` hook with a TTL'd store keyed on the challenge id:
+
+```ts
+import { createClient } from 'redis'
+
+const redis = createClient({ url: process.env.REDIS_URL })
+await redis.connect()
+
+serverStake({
+  name: 'tempo',
+  chainId: 42431,
+  contract: '0x...',
+  consumeChallenge: async (challengeId) => {
+    // Atomic claim — `SET NX` returns null if the key already exists.
+    const claimed = await redis.set(
+      `mppx:stake:challenge:${challengeId}`,
+      '1',
+      { NX: true, EX: 600 }, // 10 min, > the challenge `expires` window
+    )
+    if (!claimed) throw new Error('Challenge already consumed.')
+  },
+})
+```
+
+The hook fires after HMAC binding and signature recovery succeed (so junk
+credentials don't burn challenge ids) but **before** the on-chain read (so
+a transient RPC failure leaves the slot consumed rather than reusable).
+Use any atomic claim primitive your store supports — Redis `SET NX`,
+Postgres `INSERT ... ON CONFLICT`, DynamoDB conditional writes — so two
+concurrent verifies of the same credential can't both succeed. Throw to
+reject; the verify call will surface your error to the client.
 
 ## Client
 

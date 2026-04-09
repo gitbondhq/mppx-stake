@@ -35,6 +35,19 @@ export type StakeServerParameters = {
    * contract uses a different lookup pattern.
    */
   assertEscrowActive?: AssertEscrowActive | undefined
+  /**
+   * Marks a challenge id as consumed so the credential can't be replayed.
+   * Called after HMAC + signature recovery succeed, before the on-chain
+   * read. Throw to reject a replayed credential.
+   *
+   * Defaults to a no-op — `verify` is stateless out of the box. Production
+   * deployments should plug in a TTL'd store (Redis, Postgres, KV) keyed
+   * on the challenge id, with a TTL slightly longer than the challenge
+   * `expires` window. Use an atomic claim primitive (Redis `SET NX`,
+   * Postgres `INSERT ... ON CONFLICT`, DynamoDB conditional write) so two
+   * concurrent verifies of the same credential can't both succeed.
+   */
+  consumeChallenge?: ((challengeId: string) => Promise<void>) | undefined
 }
 
 /**
@@ -43,7 +56,7 @@ export type StakeServerParameters = {
  */
 export const createStakeServer = (method: StakeMethod) => {
   return (parameters: StakeServerParameters) => {
-    const { chainId, rpcUrl } = parameters
+    const { chainId, consumeChallenge, rpcUrl } = parameters
     const assertEscrowActive =
       parameters.assertEscrowActive ?? assertEscrowOnChain
 
@@ -103,6 +116,11 @@ export const createStakeServer = (method: StakeMethod) => {
           )
 
         assertSourceDidMatches(challengeChainId, credential.source, recovered)
+
+        // Replay protection runs after we've decided the credential is
+        // genuine (HMAC + signature pass) but before the RPC read, so a
+        // failed read leaves the slot consumed rather than reusable.
+        if (consumeChallenge) await consumeChallenge(credential.challenge.id)
 
         const client = createEvmClient(challengeChainId, rpcUrl)
         await assertEscrowActive(client, challengeRequest.contract, {

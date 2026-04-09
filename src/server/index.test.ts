@@ -277,6 +277,66 @@ describe('server stake', () => {
       expect(mocks.assertEscrowOnChain).not.toHaveBeenCalled()
     })
 
+    it('rejects a replayed credential via consumeChallenge', async () => {
+      const consumed = new Set<string>()
+      const consumeChallenge = vi.fn(async (id: string) => {
+        if (consumed.has(id)) throw new Error('Challenge already consumed.')
+        consumed.add(id)
+      })
+      const method = serverStake({
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        consumeChallenge,
+      })
+      const credential = await makeCredential()
+
+      await method.verify({ credential, request: routeRequest })
+      await expect(
+        method.verify({ credential, request: routeRequest }),
+      ).rejects.toThrow(/already consumed/)
+
+      expect(consumeChallenge).toHaveBeenCalledTimes(2)
+      expect(mocks.assertEscrowOnChain).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not consume the challenge when HMAC binding fails', async () => {
+      const consumeChallenge = vi.fn().mockResolvedValue(undefined)
+      const method = serverStake({
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        consumeChallenge,
+      })
+      const mppx = Mppx.create({ methods: [method], realm, secretKey })
+      const issuedCredential = await makeIssuedCredential()
+      const tamperedCredential = {
+        ...issuedCredential,
+        challenge: {
+          ...issuedCredential.challenge,
+          request: PaymentRequest.fromMethod(stakeMethod, {
+            ...issuedCredential.challenge.request,
+            externalId: 'document:test:tampered-replay',
+          }),
+        },
+      }
+
+      const stakeHandler = mppx.stake
+      if (!stakeHandler) throw new Error('Stake method is not configured.')
+      const result = await stakeHandler(routeRequest)(
+        new Request(`https://${realm}/${resource}`, {
+          headers: {
+            Authorization: Credential.serialize(tamperedCredential),
+          },
+        }),
+      )
+
+      expect(result.status).toBe(402)
+      expect(consumeChallenge).not.toHaveBeenCalled()
+    })
+
     it('passes a custom rpcUrl through to the evm client factory', async () => {
       const rpcUrl = 'https://private.rpc.example.com'
       const method = serverStake({
