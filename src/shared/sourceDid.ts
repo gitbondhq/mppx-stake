@@ -27,6 +27,11 @@ export const resolveBeneficiary = (
   chainId: number,
   source: string | undefined,
 ): Address => {
+  if (!source)
+    throw new Error(
+      'stake credentials must include a source DID when the challenge omits beneficiary.',
+    )
+
   const did = resolveDid(source)
   if (did.chainId !== chainId)
     throw new Error('Source DID chainId does not match the challenge chainId.')

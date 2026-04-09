@@ -32,6 +32,12 @@ describe('resolveBeneficiary', () => {
     expect(resolveBeneficiary(chainId, source)).toBe(beneficiary)
   })
 
+  it('throws a contextual error when source is missing', () => {
+    expect(() => resolveBeneficiary(chainId, undefined)).toThrow(
+      /when the challenge omits beneficiary/,
+    )
+  })
+
   it('throws when chainId does not match', () => {
     expect(() => resolveBeneficiary(1, source)).toThrow(/chainId/)
   })

@@ -416,7 +416,7 @@ describe('server stake', () => {
 
       await expect(
         method.verify({ credential, request: routeRequest }),
-      ).rejects.toThrow(/source DID/i)
+      ).rejects.toThrow(/when the challenge omits beneficiary/i)
     })
 
     it('rejects when the source DID chainId does not match', async () => {
