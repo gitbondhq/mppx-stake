@@ -1,7 +1,9 @@
 import { Method, z } from 'mppx'
 import type { Address, Hex } from 'viem'
 
-import { baseUnitAmount } from './shared/request.js'
+/** MPP stake amounts are base-unit integer strings, not decimal display values. */
+const baseUnitAmount = () =>
+  z.string().check(z.regex(/^\d+$/, 'Invalid base-unit amount'))
 
 // Each pair below ─ a TypeScript type and its zod schema ─ describes the
 // same wire shape from two angles: the type is the compile-time source of
