@@ -12,23 +12,23 @@ the credential round-trip.**
 ```
 client                                              server
   │  GET /resource                                    │
-  │ ───────────────────────────────────────────────► │
+  │ ────────────────────────────────────────────────► │
   │  402 + stake challenge                            │
-  │ ◄─────────────────────────────────────────────── │
+  │ ◄──────────────────────────────────────────────── │
   │                                                   │
-  │  signTypedData over { challengeId, expires,      │
-  │                       scope, beneficiary }       │
+  │  signTypedData over { challengeId, expires,       │
+  │                       scope, beneficiary }        │
   │                                                   │
   │  retry with credential                            │
-  │ ───────────────────────────────────────────────► │
+  │ ────────────────────────────────────────────────► │
   │                                                   │
-  │                              recover signer      │
-  │                              read isEscrowActive │
-  │                              read getActiveEscrow│
-  │                              assert state        │
+  │                              recover signer       │
+  │                              read isEscrowActive  │
+  │                              read getActiveEscrow │
+  │                              assert state         │
   │                                                   │
   │  200 + receipt                                    │
-  │ ◄─────────────────────────────────────────────── │
+  │ ◄──────────────────────────────────────────────── │
 ```
 
 ## ⚠️ What this package does **not** do
