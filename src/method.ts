@@ -6,6 +6,22 @@ import { getAddress } from 'viem'
 const baseUnitAmount = () =>
   z.string().check(z.regex(/^\d+$/, 'Invalid base-unit amount'))
 
+/**
+ * Pins the ECDSA signature to the two valid encodings (64-byte r||s or
+ * 65-byte r||s||v). `z.signature()` only checks the `0x`-hex shape and would
+ * happily accept `0xdeadbeef`, which would then fail opaquely deep inside
+ * viem's recovery path.
+ */
+const ecdsaSignature = () =>
+  z
+    .string()
+    .check(
+      z.regex(
+        /^0x(?:[0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/,
+        'Invalid ECDSA signature',
+      ),
+    )
+
 // Each pair below ─ a TypeScript type and its zod schema ─ describes the
 // same wire shape from two angles: the type is the compile-time source of
 // truth (preserving viem's `Address`/`Hex` brands that `z.address()` erases),
@@ -54,7 +70,7 @@ export type StakeCredentialPayload = {
 }
 
 const stakeCredentialPayloadSchema = z.object({
-  signature: z.signature(),
+  signature: ecdsaSignature(),
   type: z.literal('scope-active'),
 })
 
