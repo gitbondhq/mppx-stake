@@ -208,7 +208,7 @@ const assertRequestMatches = (
   ] as const
 
   for (const [label, expected, received] of pairs)
-    if (String(expected ?? '') !== String(received ?? ''))
+    if (String(expected) !== String(received))
       throw new Error(`Challenge ${label} does not match this route.`)
 }
 
