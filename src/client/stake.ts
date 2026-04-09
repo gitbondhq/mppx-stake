@@ -9,8 +9,8 @@ import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 type StakeMethod = Parameters<typeof Method.toClient>[0]
 
 export type StakeClientParameters = {
-  account: Account
-  beneficiaryAccount?: Account | undefined
+  /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
+  beneficiaryAccount: Account
 }
 
 /**
@@ -21,10 +21,7 @@ export type StakeClientParameters = {
  * responsible for having created the escrow before the credential is signed.
  */
 export const createStakeClient = (method: StakeMethod) => {
-  return (parameters: StakeClientParameters) => {
-    const beneficiaryAccount =
-      parameters.beneficiaryAccount ?? parameters.account
-
+  return ({ beneficiaryAccount }: StakeClientParameters) => {
     return Method.toClient(method, {
       async createCredential({ challenge }) {
         const request = challenge.request as StakeChallengeRequest

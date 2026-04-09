@@ -112,17 +112,22 @@ passed at the call site.
 ## Client
 
 The client method takes a viem `Account` (or anything with
-`signTypedData`) and signs the proof when the server returns a 402.
+`signTypedData`) and signs the proof when the server returns a 402. The
+account's address is what gets bound into the typed-data proof and the
+`did:pkh:eip155:{chainId}:{address}` source — so pass the **beneficiary's**
+signing account, not a payer or relayer.
 
 ```ts
 import { clientStake } from '@gitbondhq/mppx-stake/client'
 import { Mppx } from 'mppx/client'
 import { privateKeyToAccount } from 'viem/accounts'
 
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
+const beneficiaryAccount = privateKeyToAccount(
+  process.env.PRIVATE_KEY as `0x${string}`,
+)
 
 const mppx = Mppx.create({
-  methods: [clientStake({ name: 'tempo', account })],
+  methods: [clientStake({ name: 'tempo', beneficiaryAccount })],
 })
 
 // `mppx.fetch` follows the 402 → credential → retry flow automatically.
@@ -130,21 +135,6 @@ const res = await mppx.fetch('https://api.example.com/resource', {
   method: 'POST',
 })
 ```
-
-If the signing wallet is not the beneficiary (e.g. an embedded wallet
-acting on behalf of a user-controlled account), pass a separate
-`beneficiaryAccount`:
-
-```ts
-clientStake({
-  name: 'tempo',
-  account: payerAccount,         // any account that satisfies the framework
-  beneficiaryAccount: userAccount, // signs the scope-active proof
-})
-```
-
-The `beneficiaryAccount.address` is what gets bound into the typed-data
-proof and the `did:pkh:eip155:{chainId}:{address}` source.
 
 ## Schema
 

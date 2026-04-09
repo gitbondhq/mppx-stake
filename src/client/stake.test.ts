@@ -7,7 +7,7 @@ import { createStakeMethod } from '../method.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
 import { createStakeClient } from './stake.js'
 
-const account = privateKeyToAccount(
+const beneficiaryAccount = privateKeyToAccount(
   '0x59c6995e998f97a5a0044976f3c9d4e6f7b0f3c0a4f4f6c9c8f58d15a1b2c3d4',
 )
 const otherAccount = privateKeyToAccount(
@@ -37,7 +37,7 @@ const makeChallenge = (request: typeof baseRequest = baseRequest) =>
 
 describe('client stake', () => {
   it('signs a scope-active credential whose signature recovers to the signer', async () => {
-    const method = createStakeClient(stakeMethod)({ account })
+    const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
     const challenge = makeChallenge()
 
     const serialized = await method.createCredential({ challenge })
@@ -46,11 +46,11 @@ describe('client stake', () => {
 
     expect(credential.payload.type).toBe('scope-active')
     expect(credential.source).toBe(
-      `did:pkh:eip155:${baseRequest.methodDetails.chainId}:${account.address}`,
+      `did:pkh:eip155:${baseRequest.methodDetails.chainId}:${beneficiaryAccount.address}`,
     )
 
     const recovered = await recoverScopeActiveProofSigner({
-      beneficiary: account.address,
+      beneficiary: beneficiaryAccount.address,
       chainId: baseRequest.methodDetails.chainId,
       challengeId: challenge.id,
       contract: baseRequest.contract,
@@ -59,27 +59,11 @@ describe('client stake', () => {
       signature: credential.payload.signature,
     })
 
-    expect(recovered).toBe(account.address)
-  })
-
-  it('uses beneficiaryAccount for signing when provided', async () => {
-    const method = createStakeClient(stakeMethod)({
-      account: otherAccount,
-      beneficiaryAccount: account,
-    })
-    const serialized = await method.createCredential({
-      challenge: makeChallenge(),
-    })
-    const credential =
-      Credential.deserialize<StakeCredentialPayload>(serialized)
-
-    expect(credential.source).toBe(
-      `did:pkh:eip155:${baseRequest.methodDetails.chainId}:${account.address}`,
-    )
+    expect(recovered).toBe(beneficiaryAccount.address)
   })
 
   it('throws when the challenge beneficiary does not match the signer', async () => {
-    const method = createStakeClient(stakeMethod)({ account })
+    const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
     const challenge = makeChallenge({
       ...baseRequest,
       // @ts-expect-error narrow type doesn't carry through readonly literal
@@ -92,7 +76,7 @@ describe('client stake', () => {
   })
 
   it('throws on an unsupported chain', async () => {
-    const method = createStakeClient(stakeMethod)({ account })
+    const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
     const challenge = makeChallenge({
       ...baseRequest,
       methodDetails: { chainId: 9999 },
