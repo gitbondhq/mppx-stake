@@ -3,6 +3,12 @@
 import { createStakeMethod, type StakeMethodParameters } from '../method.js'
 import { createStakeServer, type StakeServerParameters } from './stake.js'
 
+export type {
+  AssertEscrowActive,
+  EscrowState,
+  EscrowVerificationParams,
+} from './escrowState.js'
+
 type CreateServerStakeParameters = StakeServerParameters & StakeMethodParameters
 type ServerStakeFactory = (
   parameters: CreateServerStakeParameters,

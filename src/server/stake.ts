@@ -12,7 +12,7 @@ import {
   assertSourceDidMatches,
   resolveBeneficiary,
 } from '../shared/sourceDid.js'
-import { assertEscrowOnChain } from './escrowState.js'
+import { type AssertEscrowActive, assertEscrowOnChain } from './escrowState.js'
 
 type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }
 
@@ -22,6 +22,13 @@ export type StakeServerParameters = {
   counterparty?: Address | undefined
   token?: Address | undefined
   description?: string | undefined
+  /**
+   * Override the on-chain active-escrow verification. Defaults to a
+   * canonical `isEscrowActive(scope, beneficiary)` + `getActiveEscrow`
+   * read against the bundled MPPEscrow ABI. Provide your own when your
+   * contract uses a different lookup pattern.
+   */
+  assertEscrowActive?: AssertEscrowActive | undefined
 }
 
 /**
@@ -31,6 +38,8 @@ export type StakeServerParameters = {
 export const createStakeServer = (method: StakeMethod) => {
   return (parameters: StakeServerParameters) => {
     const { chainId } = parameters
+    const assertEscrowActive =
+      parameters.assertEscrowActive ?? assertEscrowOnChain
 
     return Method.toServer(method, {
       defaults: {
@@ -86,7 +95,7 @@ export const createStakeServer = (method: StakeMethod) => {
         assertSourceDidMatches(challengeChainId, credential.source, recovered)
 
         const client = createEvmClient(challengeChainId)
-        await assertEscrowOnChain(client, challengeRequest.contract, {
+        await assertEscrowActive(client, challengeRequest.contract, {
           beneficiary: recovered,
           counterparty: challengeRequest.counterparty,
           scope: challengeRequest.scope,

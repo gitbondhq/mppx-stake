@@ -202,6 +202,33 @@ describe('server stake', () => {
       )
     })
 
+    it('uses a custom assertEscrowActive override when provided', async () => {
+      const customAssert = vi.fn().mockResolvedValue(undefined)
+      const method = serverStake({
+        assertEscrowActive: customAssert,
+        chainId,
+        contract,
+        token,
+        name: methodName,
+      })
+      const credential = await makeCredential()
+
+      await method.verify({ credential, request: routeRequest })
+
+      expect(customAssert).toHaveBeenCalledWith(
+        {},
+        contract,
+        expect.objectContaining({
+          beneficiary,
+          counterparty,
+          scope,
+          token,
+          value: 5_000_000n,
+        }),
+      )
+      expect(mocks.assertEscrowOnChain).not.toHaveBeenCalled()
+    })
+
     it('rejects a tampered challenge at the HMAC check', async () => {
       const method = serverStake({ chainId, contract, token, name: methodName })
       const mppx = Mppx.create({

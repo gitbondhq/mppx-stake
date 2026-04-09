@@ -46,11 +46,23 @@ export const assertEscrowState = (
     throw new Error('Mismatched escrow.principal.')
 }
 
-/** Verifies the canonical active-state query, then checks the full escrow record. */
-export const assertEscrowOnChain = async (
+/**
+ * The signature consumers must implement when overriding the default
+ * on-chain verification via `serverStake({ assertEscrowActive })`. Useful
+ * when your contract uses a different active-escrow lookup pattern than
+ * the canonical `(scope, beneficiary)` pair this package targets.
+ */
+export type AssertEscrowActive = (
   client: Client,
   contract: Address,
   parameters: EscrowVerificationParams,
+) => Promise<void>
+
+/** Verifies the canonical active-state query, then checks the full escrow record. */
+export const assertEscrowOnChain: AssertEscrowActive = async (
+  client,
+  contract,
+  parameters,
 ) => {
   const isActive = (await readContract(client, {
     abi: escrowAbi,
