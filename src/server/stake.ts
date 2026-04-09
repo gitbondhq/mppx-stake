@@ -2,13 +2,13 @@ import { type Credential, Method, PaymentRequest } from 'mppx'
 import type { Address } from 'viem'
 import { isAddressEqual } from 'viem'
 
-import { createClient } from '../shared/evmClient.js'
-import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
-import { assertSourceDidMatches, resolveBeneficiary } from '../shared/source.js'
 import type {
   StakeChallengeRequest,
   StakeCredentialPayload,
-} from '../stakeSchema.js'
+} from '../methods.js'
+import { createClient } from '../shared/evmClient.js'
+import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
+import { assertSourceDidMatches, resolveBeneficiary } from '../shared/source.js'
 import { assertEscrowOnChain } from './escrowState.js'
 
 type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }
