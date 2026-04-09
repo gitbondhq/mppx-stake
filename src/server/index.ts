@@ -1,6 +1,6 @@
 // Public server entry — only this file is referenced by `package.json` exports.
 // Sibling files in this directory are package-private.
-import { createStakeMethod, type StakeMethodParameters } from '../Methods.js'
+import { createStakeMethod, type StakeMethodParameters } from '../methods.js'
 import { createStakeServer, type StakeServerParameters } from './stake.js'
 
 type CreateServerStakeParameters = StakeServerParameters & StakeMethodParameters

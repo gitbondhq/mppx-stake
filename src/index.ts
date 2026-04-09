@@ -1,6 +1,6 @@
 export { getChain, isChainSupported, supportedChains } from './chains.js'
 export { parseStakeChallenge, type StakeChallenge } from './challenge.js'
-export * as Methods from './Methods.js'
+export { createStakeMethod, type StakeMethodParameters } from './methods.js'
 export {
   type StakeChallengeRequest,
   type StakeCredentialPayload,

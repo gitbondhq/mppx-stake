@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { StakeChallenge } from './challenge.js'
 import { parseStakeChallenge } from './challenge.js'
-import { createStakeMethod } from './Methods.js'
+import { createStakeMethod } from './methods.js'
 
 const methodName = 'tempo'
 const stakeMethod = createStakeMethod({ name: methodName })

@@ -1,7 +1,7 @@
 import { PaymentRequest } from 'mppx'
 import { describe, expect, it } from 'vitest'
 
-import * as Methods from './Methods.js'
+import { createStakeMethod } from './methods.js'
 
 const request = {
   amount: '5000000',
@@ -18,7 +18,7 @@ const request = {
   },
 } as const
 
-const stakeMethod = Methods.createStakeMethod({ name: 'tempo' })
+const stakeMethod = createStakeMethod({ name: 'tempo' })
 
 describe('stake method schema', () => {
   it('parses a valid request', () => {
