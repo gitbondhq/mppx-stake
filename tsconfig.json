@@ -21,6 +21,7 @@
     /* Build */
     "rootDir": "src",
     "outDir": "dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "incremental": true,
     "sourceMap": true,
     "declaration": true,
