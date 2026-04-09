@@ -11,8 +11,8 @@ export type EvmClient = Client<Transport, Chain>
  * no fee-payer or signing plumbing here — consumers that need to send
  * transactions own that path.
  */
-export const createClient = (parameters: { chainId: number }): EvmClient => {
-  const chain = getChain(parameters.chainId)
+export const createClient = (chainId: number): EvmClient => {
+  const chain = getChain(chainId)
   const url = chain.rpcUrls.default.http[0]
   if (!url) throw new Error(`No default RPC URL configured for ${chain.name}.`)
   return viemCreateClient({ chain, transport: http(url) }) as EvmClient

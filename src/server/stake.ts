@@ -82,7 +82,7 @@ export const createStakeServer = (method: StakeMethod) => {
 
         assertSourceDidMatches(challengeChainId, credential.source, recovered)
 
-        const client = createClient({ chainId: challengeChainId })
+        const client = createClient(challengeChainId)
         await assertEscrowOnChain(client, challengeRequest.contract, {
           beneficiary: recovered,
           counterparty: challengeRequest.counterparty,

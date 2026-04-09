@@ -188,7 +188,7 @@ describe('server stake', () => {
         status: 'success',
         timestamp: expect.any(String),
       })
-      expect(mocks.createClient).toHaveBeenCalledWith({ chainId })
+      expect(mocks.createClient).toHaveBeenCalledWith(chainId)
       expect(mocks.assertEscrowOnChain).toHaveBeenCalledWith(
         {},
         contract,
