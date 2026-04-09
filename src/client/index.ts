@@ -9,5 +9,5 @@ type ClientStakeFactory = (
 ) => ReturnType<ReturnType<typeof createStakeClient>>
 
 /** Client-side `stake` method implementation used to create credentials. */
-export const stake: ClientStakeFactory = ({ name, ...parameters }) =>
+export const clientStake: ClientStakeFactory = ({ name, ...parameters }) =>
   createStakeClient(createStakeMethod({ name }))(parameters)

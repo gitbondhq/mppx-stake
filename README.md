@@ -58,13 +58,13 @@ on your route. Per-route fields (`amount`, `scope`, anything else specific
 to that resource) are passed at handler-construction time.
 
 ```ts
-import { stake } from '@gitbondhq/mppx-stake/server'
+import { serverStake } from '@gitbondhq/mppx-stake/server'
 import { Mppx } from 'mppx/server'
 import { keccak256, toHex } from 'viem'
 
 const mppx = Mppx.create({
   methods: [
-    stake({
+    serverStake({
       name: 'tempo',
       chainId: 42431, // tempoModerato
       contract: '0xe1c4d3dce17bc111181ddf716f75bae49e61a336',
@@ -115,14 +115,14 @@ The client method takes a viem `Account` (or anything with
 `signTypedData`) and signs the proof when the server returns a 402.
 
 ```ts
-import { stake } from '@gitbondhq/mppx-stake/client'
+import { clientStake } from '@gitbondhq/mppx-stake/client'
 import { Mppx } from 'mppx/client'
 import { privateKeyToAccount } from 'viem/accounts'
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
 
 const mppx = Mppx.create({
-  methods: [stake({ name: 'tempo', account })],
+  methods: [clientStake({ name: 'tempo', account })],
 })
 
 // `mppx.fetch` follows the 402 → credential → retry flow automatically.
@@ -136,7 +136,7 @@ acting on behalf of a user-controlled account), pass a separate
 `beneficiaryAccount`:
 
 ```ts
-stake({
+clientStake({
   name: 'tempo',
   account: payerAccount,         // any account that satisfies the framework
   beneficiaryAccount: userAccount, // signs the scope-active proof
@@ -231,9 +231,9 @@ either side.
 
 ## Subpath exports
 
-| Entry                            | Use                                             |
-| -------------------------------- | ----------------------------------------------- |
-| `@gitbondhq/mppx-stake`          | Schema, types, chain helpers, challenge parser. |
-| `@gitbondhq/mppx-stake/client`   | `stake()` for the client (signs proofs).        |
-| `@gitbondhq/mppx-stake/server`   | `stake()` for the server (verifies proofs).     |
-| `@gitbondhq/mppx-stake/abi`      | `escrowAbi`.                                    |
+| Entry                            | Use                                                              |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `@gitbondhq/mppx-stake`          | Schema, types, chain helpers, challenge parser.                  |
+| `@gitbondhq/mppx-stake/client`   | `clientStake()` — configures a client method that signs proofs.  |
+| `@gitbondhq/mppx-stake/server`   | `serverStake()` — configures a server method that verifies them. |
+| `@gitbondhq/mppx-stake/abi`      | `escrowAbi`.                                                     |

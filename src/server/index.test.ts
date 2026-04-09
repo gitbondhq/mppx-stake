@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createStakeMethod } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
-import { stake } from './index.js'
+import { serverStake } from './index.js'
 
 const beneficiaryAccount = privateKeyToAccount(
   '0x59c6995e998f97a5a0044976f3c9d4e6f7b0f3c0a4f4f6c9c8f58d15a1b2c3d4',
@@ -129,13 +129,13 @@ const makeIssuedCredential = async (parameters?: {
 
 describe('server stake', () => {
   it('exposes the stake method with the configured name', () => {
-    const method = stake({ chainId, contract, token, name: methodName })
+    const method = serverStake({ chainId, contract, token, name: methodName })
     expect(method.name).toBe(methodName)
     expect(method.intent).toBe('stake')
   })
 
   it('keeps route defaults limited to shared request fields', () => {
-    const method = stake({
+    const method = serverStake({
       chainId,
       contract,
       counterparty,
@@ -155,7 +155,7 @@ describe('server stake', () => {
   })
 
   it('reuses echoed scope and externalId when a credential is present', async () => {
-    const method = stake({ chainId, contract, token, name: methodName })
+    const method = serverStake({ chainId, contract, token, name: methodName })
     const credential = await makeCredential()
 
     const request = await method.request!({
@@ -177,7 +177,7 @@ describe('server stake', () => {
     beforeEach(() => vi.clearAllMocks())
 
     it('recovers the beneficiary proof and verifies on-chain state', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const credential = await makeCredential()
 
       const result = await method.verify({ credential, request: routeRequest })
@@ -203,7 +203,7 @@ describe('server stake', () => {
     })
 
     it('rejects a tampered challenge at the HMAC check', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const mppx = Mppx.create({
         methods: [method],
         realm,
@@ -240,7 +240,7 @@ describe('server stake', () => {
     })
 
     it('rejects when the route request does not match the challenge', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const mismatchedRequest = PaymentRequest.fromMethod(stakeMethod, {
         ...rawInput,
         amount: '9999999',
@@ -255,7 +255,7 @@ describe('server stake', () => {
     })
 
     it('rejects when the challenge resource does not match', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const mismatchedRequest = PaymentRequest.fromMethod(stakeMethod, {
         ...rawInput,
         resource: 'documents/other',
@@ -270,7 +270,7 @@ describe('server stake', () => {
     })
 
     it('rejects when the source DID chainId does not match', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const credential = await makeCredential({
         source: `did:pkh:eip155:1:${beneficiary}`,
       })
@@ -281,7 +281,7 @@ describe('server stake', () => {
     })
 
     it('rejects when the source DID address does not match the recovered beneficiary', async () => {
-      const method = stake({ chainId, contract, token, name: methodName })
+      const method = serverStake({ chainId, contract, token, name: methodName })
       const wrongAddress =
         '0x4444444444444444444444444444444444444444' as Address
       const credential = await makeCredential({

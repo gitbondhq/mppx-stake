@@ -9,5 +9,5 @@ type ServerStakeFactory = (
 ) => ReturnType<ReturnType<typeof createStakeServer>>
 
 /** Server-side `stake` method implementation used to issue and verify challenges. */
-export const stake: ServerStakeFactory = ({ name, ...parameters }) =>
+export const serverStake: ServerStakeFactory = ({ name, ...parameters }) =>
   createStakeServer(createStakeMethod({ name }))(parameters)
