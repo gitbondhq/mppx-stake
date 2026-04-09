@@ -4,7 +4,7 @@ import type { Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createStakeMethod } from '../methods.js'
+import { createStakeMethod } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 import { stake } from './index.js'
 

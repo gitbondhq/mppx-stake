@@ -5,7 +5,7 @@ import { isAddressEqual } from 'viem'
 import type {
   StakeChallengeRequest,
   StakeCredentialPayload,
-} from '../methods.js'
+} from '../method.js'
 import { createClient } from '../shared/evmClient.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
 import { assertSourceDidMatches, resolveBeneficiary } from '../shared/source.js'

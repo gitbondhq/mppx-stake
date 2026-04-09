@@ -2,8 +2,8 @@ import { Challenge, Credential } from 'mppx'
 import { privateKeyToAccount } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
 
-import type { StakeCredentialPayload } from '../methods.js'
-import { createStakeMethod } from '../methods.js'
+import type { StakeCredentialPayload } from '../method.js'
+import { createStakeMethod } from '../method.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
 import { createStakeClient } from './stake.js'
 

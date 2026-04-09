@@ -3,7 +3,7 @@ import type { Account } from 'viem'
 import { isAddressEqual } from 'viem'
 
 import { getChain } from '../chains.js'
-import type { StakeChallengeRequest } from '../methods.js'
+import type { StakeChallengeRequest } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 
 type StakeMethod = Parameters<typeof Method.toClient>[0]

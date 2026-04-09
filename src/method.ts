@@ -3,15 +3,14 @@ import type { Address, Hex } from 'viem'
 
 import { baseUnitAmount } from './shared/request.js'
 
-/**
- * The wire shape of a stake challenge request.
- *
- * Hand-written rather than derived from `stakeRequestSchema` so the address
- * and hash fields keep viem's branded types (`Address`, `Hex`) — `z.address()`
- * and friends erase those brands to plain `string`. The runtime schema below
- * is the runtime source of truth; this type is the compile-time source of
- * truth. Keep them in sync (tests catch most drift).
- */
+// Each pair below ─ a TypeScript type and its zod schema ─ describes the
+// same wire shape from two angles: the type is the compile-time source of
+// truth (preserving viem's `Address`/`Hex` brands that `z.address()` erases),
+// the schema is the runtime source of truth. Keep them in sync; tests cover
+// most drift but if you add a field to one, add it to the other.
+
+// ── Stake challenge request ──────────────────────────────────────────────
+
 export type StakeChallengeRequest = {
   amount: string
   beneficiary?: Address | undefined
@@ -26,15 +25,6 @@ export type StakeChallengeRequest = {
   methodDetails: {
     chainId: number
   }
-}
-
-export type StakeCredentialPayload = {
-  signature: Hex
-  type: 'scope-active'
-}
-
-export type StakeMethodParameters = {
-  name: string
 }
 
 const stakeRequestSchema = z.object({
@@ -53,10 +43,23 @@ const stakeRequestSchema = z.object({
   }),
 })
 
+// ── Stake credential payload ─────────────────────────────────────────────
+
+export type StakeCredentialPayload = {
+  signature: Hex
+  type: 'scope-active'
+}
+
 const stakeCredentialPayloadSchema = z.object({
   signature: z.signature(),
   type: z.literal('scope-active'),
 })
+
+// ── Method factory ───────────────────────────────────────────────────────
+
+export type StakeMethodParameters = {
+  name: string
+}
 
 /**
  * Shared `name/stake` method schema used by both the client and server
