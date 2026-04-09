@@ -1,5 +1,5 @@
 import { Challenge, Credential, PaymentRequest } from 'mppx'
-import { Mppx } from 'mppx/server'
+import { Mppx, tempo as upstreamTempo } from 'mppx/server'
 import type { Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -67,22 +67,39 @@ vi.mock('./escrowState.js', async importOriginal => ({
   assertEscrowOnChain: mocks.assertEscrowOnChain,
 }))
 
+type ProofOverrides = {
+  amount?: string
+  counterparty?: `0x${string}`
+  scope?: `0x${string}`
+  token?: `0x${string}`
+}
+
 const makeCredential = async (parameters?: {
   challengeRequest?: typeof challengeRequest
-  source?: string
+  proofOverrides?: ProofOverrides
+  source?: string | undefined
 }) => {
   const request = parameters?.challengeRequest ?? challengeRequest
+  const proof = parameters?.proofOverrides
   const signature = await signScopeActiveProof(beneficiaryAccount, {
-    amount: request.amount,
+    amount: proof?.amount ?? request.amount,
     beneficiary,
     chainId,
     challengeId: 'test-challenge-id',
     contract,
-    counterparty: request.counterparty as `0x${string}`,
+    counterparty:
+      proof?.counterparty ?? (request.counterparty as `0x${string}`),
     expires,
-    scope: request.scope as `0x${string}`,
-    token: request.token as `0x${string}`,
+    scope: proof?.scope ?? (request.scope as `0x${string}`),
+    token: proof?.token ?? (request.token as `0x${string}`),
   })
+
+  // Discriminate "explicitly passed undefined" from "not passed at all" so the
+  // requires-source-DID test can produce a credential with no source.
+  const source =
+    parameters && 'source' in parameters
+      ? parameters.source
+      : `did:pkh:eip155:${chainId}:${beneficiary}`
 
   return {
     challenge: {
@@ -97,7 +114,7 @@ const makeCredential = async (parameters?: {
       signature,
       type: 'scope-active' as const,
     },
-    source: parameters?.source ?? `did:pkh:eip155:${chainId}:${beneficiary}`,
+    source,
   }
 }
 
@@ -138,6 +155,30 @@ describe('server stake', () => {
     const method = serverStake({ chainId, contract, token, name: methodName })
     expect(method.name).toBe(methodName)
     expect(method.intent).toBe('stake')
+  })
+
+  it('composes with an existing tempo method set', () => {
+    const methods = [
+      ...upstreamTempo({ account: beneficiaryAccount }),
+      serverStake({ chainId, contract, token, name: methodName }),
+    ] as const
+
+    const stakeMethods = methods.filter(m => m.intent === 'stake')
+    expect(stakeMethods).toHaveLength(1)
+    expect(stakeMethods[0]?.name).toBe(methodName)
+    expect(methods.length).toBeGreaterThan(1)
+  })
+
+  it('wires stake into Mppx.create()', () => {
+    const mppx = Mppx.create({
+      methods: [
+        serverStake({ chainId, contract, token, name: methodName }),
+      ] as const,
+      secretKey,
+    })
+
+    expect(typeof mppx.stake).toBe('function')
+    expect(typeof mppx[`${methodName}/stake`]).toBe('function')
   })
 
   it('keeps route defaults limited to shared request fields', () => {
@@ -272,6 +313,73 @@ describe('server stake', () => {
       expect(mocks.assertEscrowOnChain).not.toHaveBeenCalled()
     })
 
+    it('rejects a challenge tampered before signing at the HMAC check', async () => {
+      // Adversary tampers the request *and* re-signs over the tampered values,
+      // so the credential is internally consistent. The HMAC binding still
+      // catches it because the embedded challenge.id was issued for the
+      // original request, not the tampered one.
+      const method = serverStake({ chainId, contract, token, name: methodName })
+      const mppx = Mppx.create({
+        methods: [method],
+        realm,
+        secretKey,
+      })
+      const issuedCredential = await makeIssuedCredential()
+      const tamperedRequest = PaymentRequest.fromMethod(stakeMethod, {
+        ...issuedCredential.challenge.request,
+        externalId: 'document:test:tampered-before-sign',
+      }) as typeof challengeRequest
+      const signature = await signScopeActiveProof(beneficiaryAccount, {
+        amount: tamperedRequest.amount,
+        beneficiary,
+        chainId,
+        challengeId: issuedCredential.challenge.id,
+        contract: tamperedRequest.contract as `0x${string}`,
+        counterparty: tamperedRequest.counterparty as `0x${string}`,
+        expires: issuedCredential.challenge.expires,
+        scope: tamperedRequest.scope as `0x${string}`,
+        token: tamperedRequest.token as `0x${string}`,
+      })
+      const credential = {
+        ...issuedCredential,
+        challenge: {
+          ...issuedCredential.challenge,
+          request: tamperedRequest,
+        },
+        payload: { signature, type: 'scope-active' as const },
+      }
+
+      const stakeHandler = mppx.stake
+      if (!stakeHandler) throw new Error('Stake method is not configured.')
+      const result = await stakeHandler(routeRequest)(
+        new Request(`https://${realm}/${resource}`, {
+          headers: { Authorization: Credential.serialize(credential) },
+        }),
+      )
+
+      expect(result.status).toBe(402)
+      if (result.status !== 402) throw new Error('Expected a 402 challenge.')
+      expect(await result.challenge.text()).toContain(
+        'challenge was not issued by this server',
+      )
+      expect(mocks.assertEscrowOnChain).not.toHaveBeenCalled()
+    })
+
+    it('rejects when the signature was created for different stake terms', async () => {
+      // Credential is signed over a different amount than the embedded
+      // challenge request carries. After P0 #2 the amount is part of the
+      // typed-data hash, so signature recovery yields a different address
+      // than the expected beneficiary, and verify rejects it.
+      const method = serverStake({ chainId, contract, token, name: methodName })
+      const credential = await makeCredential({
+        proofOverrides: { amount: '9999999' },
+      })
+
+      await expect(
+        method.verify({ credential, request: routeRequest }),
+      ).rejects.toThrow(/recovered beneficiary/i)
+    })
+
     it('rejects when the route request does not match the challenge', async () => {
       const method = serverStake({ chainId, contract, token, name: methodName })
       const mismatchedRequest = PaymentRequest.fromMethod(stakeMethod, {
@@ -300,6 +408,15 @@ describe('server stake', () => {
       await expect(
         method.verify({ credential, request: routeRequest }),
       ).rejects.toThrow(/resource/i)
+    })
+
+    it('requires a source DID when the challenge omits beneficiary', async () => {
+      const method = serverStake({ chainId, contract, token, name: methodName })
+      const credential = await makeCredential({ source: undefined })
+
+      await expect(
+        method.verify({ credential, request: routeRequest }),
+      ).rejects.toThrow(/source DID/i)
     })
 
     it('rejects when the source DID chainId does not match', async () => {
