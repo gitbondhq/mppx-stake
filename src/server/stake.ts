@@ -2,9 +2,11 @@ import { type Credential, Method, PaymentRequest } from 'mppx'
 import type { Address } from 'viem'
 import { isAddressEqual } from 'viem'
 
-import type {
-  StakeChallengeRequest,
-  StakeCredentialPayload,
+import {
+  brandStakeRequest,
+  type StakeChallengeRequest,
+  type StakeCredentialPayload,
+  type StakeMethod,
 } from '../method.js'
 import { createEvmClient } from '../shared/evmClient.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
@@ -13,8 +15,6 @@ import {
   resolveBeneficiary,
 } from '../shared/sourceDid.js'
 import { type AssertEscrowActive, assertEscrowOnChain } from './escrowState.js'
-
-type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }
 
 export type StakeServerParameters = {
   chainId: number
@@ -53,19 +53,20 @@ export const createStakeServer = (method: StakeMethod) => {
       async request({ credential, request }) {
         const echoed = echoFromCredential(credential, method)
         return {
-          ...(request as Record<string, unknown>),
+          ...request,
           ...echoed,
           methodDetails: { chainId },
         }
       },
 
       async verify({ credential, request }) {
-        const challengeRequest = credential.challenge
-          .request as StakeChallengeRequest
-        const currentRequest = PaymentRequest.fromMethod(method, {
-          ...(request as Record<string, unknown>),
-          methodDetails: { chainId },
-        }) as StakeChallengeRequest
+        const challengeRequest = brandStakeRequest(credential.challenge.request)
+        const currentRequest = brandStakeRequest(
+          PaymentRequest.fromMethod(method, {
+            ...request,
+            methodDetails: { chainId },
+          }),
+        )
         assertRequestMatches(currentRequest, challengeRequest)
 
         const challengeChainId = challengeRequest.methodDetails.chainId
@@ -137,7 +138,7 @@ const echoFromCredential = (
 
   const parsed = method.schema.request.safeParse(credential.challenge.request)
   if (!parsed.success) return {}
-  const echoed = parsed.data as StakeChallengeRequest
+  const echoed = brandStakeRequest(parsed.data)
 
   return {
     ...(echoed.beneficiary ? { beneficiary: echoed.beneficiary } : {}),
@@ -156,19 +157,25 @@ const assertRequestMatches = (
   currentRequest: StakeChallengeRequest,
   challengeRequest: StakeChallengeRequest,
 ) => {
+  assertOptionalAddress(
+    'beneficiary',
+    currentRequest.beneficiary,
+    challengeRequest.beneficiary,
+  )
+  assertAddress('contract', currentRequest.contract, challengeRequest.contract)
+  assertAddress(
+    'counterparty',
+    currentRequest.counterparty,
+    challengeRequest.counterparty,
+  )
+  assertAddress('token', currentRequest.token, challengeRequest.token)
+
   const pairs = [
     ['amount', currentRequest.amount, challengeRequest.amount],
-    ['contract', currentRequest.contract, challengeRequest.contract],
-    [
-      'counterparty',
-      currentRequest.counterparty,
-      challengeRequest.counterparty,
-    ],
     ['externalId', currentRequest.externalId, challengeRequest.externalId],
     ['policy', currentRequest.policy, challengeRequest.policy],
     ['resource', currentRequest.resource, challengeRequest.resource],
     ['scope', currentRequest.scope, challengeRequest.scope],
-    ['token', currentRequest.token, challengeRequest.token],
     [
       'chainId',
       currentRequest.methodDetails.chainId,
@@ -179,17 +186,19 @@ const assertRequestMatches = (
   for (const [label, expected, received] of pairs)
     if (String(expected ?? '') !== String(received ?? ''))
       throw new Error(`Challenge ${label} does not match this route.`)
+}
 
-  const currentBeneficiary = currentRequest.beneficiary
-  const challengeBeneficiary = challengeRequest.beneficiary
-  if (
-    !currentBeneficiary !== !challengeBeneficiary ||
-    (currentBeneficiary &&
-      challengeBeneficiary &&
-      !isAddressEqual(
-        currentBeneficiary as Address,
-        challengeBeneficiary as Address,
-      ))
-  )
-    throw new Error('Challenge beneficiary does not match this route.')
+const assertAddress = (label: string, expected: Address, received: Address) => {
+  if (!isAddressEqual(expected, received))
+    throw new Error(`Challenge ${label} does not match this route.`)
+}
+
+const assertOptionalAddress = (
+  label: string,
+  expected: Address | undefined,
+  received: Address | undefined,
+) => {
+  if (!expected && !received) return
+  if (!expected || !received || !isAddressEqual(expected, received))
+    throw new Error(`Challenge ${label} does not match this route.`)
 }

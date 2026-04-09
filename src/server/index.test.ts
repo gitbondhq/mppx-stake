@@ -48,6 +48,7 @@ const routeRequest = {
   resource: rawInput.resource,
   scope: rawInput.scope,
   token: rawInput.token,
+  methodDetails: { chainId },
 }
 
 const stakeMethod = createStakeMethod({ name: methodName })

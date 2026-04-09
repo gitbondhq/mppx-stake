@@ -1,5 +1,6 @@
 import { Method, z } from 'mppx'
 import type { Address, Hex } from 'viem'
+import { getAddress } from 'viem'
 
 /** MPP stake amounts are base-unit integer strings, not decimal display values. */
 const baseUnitAmount = () =>
@@ -76,3 +77,42 @@ export const createStakeMethod = ({ name }: StakeMethodParameters) =>
       request: stakeRequestSchema,
     },
   })
+
+/**
+ * The configured stake method type. Hand-written rather than derived via
+ * `ReturnType<typeof createStakeMethod>` because the arrow function widens
+ * `intent: 'stake'` back to `string` on return, which would erase the
+ * literal that downstream `Challenge`/`Credential` generics depend on.
+ */
+export type StakeMethod = {
+  name: string
+  intent: 'stake'
+  schema: {
+    credential: { payload: typeof stakeCredentialPayloadSchema }
+    request: typeof stakeRequestSchema
+  }
+}
+
+/**
+ * Re-applies viem's `Address` / `Hex` brands to a zod-parsed stake request.
+ *
+ * `z.address()` and `z.hash()` erase viem brands at the type level, so the
+ * server and client adapters can't pass parsed requests straight into viem
+ * helpers without an `as` cast. This helper does the branding once so call
+ * sites stay assertion-free.
+ */
+export const brandStakeRequest = (
+  raw: z.output<typeof stakeRequestSchema>,
+): StakeChallengeRequest => ({
+  amount: raw.amount,
+  ...(raw.beneficiary ? { beneficiary: getAddress(raw.beneficiary) } : {}),
+  contract: getAddress(raw.contract),
+  counterparty: getAddress(raw.counterparty),
+  ...(raw.description ? { description: raw.description } : {}),
+  ...(raw.externalId ? { externalId: raw.externalId } : {}),
+  ...(raw.policy ? { policy: raw.policy } : {}),
+  ...(raw.resource ? { resource: raw.resource } : {}),
+  scope: raw.scope as Hex,
+  token: getAddress(raw.token),
+  methodDetails: { chainId: raw.methodDetails.chainId },
+})

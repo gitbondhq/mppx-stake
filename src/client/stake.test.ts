@@ -35,10 +35,17 @@ const makeChallenge = (request: typeof baseRequest = baseRequest) =>
     request,
   })
 
+// `Challenge.fromMethod` widens `intent`/`method` to `string` in its return
+// type, so the literal-typed `method.createCredential` parameter needs a
+// cast at each test call site.
+type CredentialChallenge = Parameters<
+  ReturnType<ReturnType<typeof createStakeClient>>['createCredential']
+>[0]['challenge']
+
 describe('client stake', () => {
   it('signs a scope-active credential whose signature recovers to the signer', async () => {
     const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
-    const challenge = makeChallenge()
+    const challenge = makeChallenge() as CredentialChallenge
 
     const serialized = await method.createCredential({ challenge })
     const credential =
@@ -71,7 +78,7 @@ describe('client stake', () => {
       ...baseRequest,
       // @ts-expect-error narrow type doesn't carry through readonly literal
       beneficiary: otherAccount.address,
-    })
+    }) as CredentialChallenge
 
     await expect(method.createCredential({ challenge })).rejects.toThrow(
       /beneficiary signing account/,
@@ -83,7 +90,7 @@ describe('client stake', () => {
     const challenge = makeChallenge({
       ...baseRequest,
       methodDetails: { chainId: 9999 },
-    } as unknown as typeof baseRequest)
+    } as unknown as typeof baseRequest) as CredentialChallenge
 
     await expect(method.createCredential({ challenge })).rejects.toThrow(
       /Unsupported chainId/,

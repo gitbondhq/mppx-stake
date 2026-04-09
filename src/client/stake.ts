@@ -3,10 +3,8 @@ import type { Account } from 'viem'
 import { isAddressEqual } from 'viem'
 
 import { getChain } from '../chains.js'
-import type { StakeChallengeRequest } from '../method.js'
+import { brandStakeRequest, type StakeMethod } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
-
-type StakeMethod = Parameters<typeof Method.toClient>[0]
 
 export type StakeClientParameters = {
   /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
@@ -24,7 +22,7 @@ export const createStakeClient = (method: StakeMethod) => {
   return ({ beneficiaryAccount }: StakeClientParameters) => {
     return Method.toClient(method, {
       async createCredential({ challenge }) {
-        const request = challenge.request as StakeChallengeRequest
+        const request = brandStakeRequest(challenge.request)
         const chainId = request.methodDetails.chainId
 
         // Surface unsupported chains here rather than waiting for the server.
