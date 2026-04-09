@@ -8,7 +8,10 @@ import type {
 } from '../method.js'
 import { createEvmClient } from '../shared/evmClient.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
-import { assertSourceDidMatches, resolveBeneficiary } from '../shared/source.js'
+import {
+  assertSourceDidMatches,
+  resolveBeneficiary,
+} from '../shared/sourceDid.js'
 import { assertEscrowOnChain } from './escrowState.js'
 
 type StakeMethod = Parameters<typeof Method.toServer>[0] & { name: string }

@@ -5,7 +5,7 @@ import {
   assertSourceDidMatches,
   resolveBeneficiary,
   resolveDid,
-} from './source.js'
+} from './sourceDid.js'
 
 const beneficiary = '0x3333333333333333333333333333333333333333' as Address
 const chainId = 42431
