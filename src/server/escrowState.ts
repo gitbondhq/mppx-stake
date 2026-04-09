@@ -1,20 +1,15 @@
-import type { Address, Client, Hex } from 'viem'
+import type { Address, Client, Hex, ReadContractReturnType } from 'viem'
 import { isAddressEqual } from 'viem'
 import { readContract } from 'viem/actions'
 
 import { escrowAbi } from '../abi/escrow.js'
 
-export type EscrowState = {
-  beneficiary: Address
-  counterparty: Address
-  depositedAt: bigint
-  id: bigint
-  isActive: boolean
-  payer: Address
-  principal: bigint
-  scope: Hex
-  token: Address
-}
+/**
+ * The full escrow record returned by `MPPEscrow.getActiveEscrow`. Inferred
+ * from the bundled ABI so it tracks the contract automatically — no
+ * hand-maintained field list to drift out of sync.
+ */
+type EscrowRecord = ReadContractReturnType<typeof escrowAbi, 'getActiveEscrow'>
 
 export type EscrowVerificationParams = {
   beneficiary: Address
@@ -26,7 +21,7 @@ export type EscrowVerificationParams = {
 
 /** Confirms the resolved on-chain escrow matches the expected beneficiary and terms. */
 export const assertEscrowState = (
-  escrow: EscrowState,
+  escrow: EscrowRecord,
   parameters: EscrowVerificationParams,
 ) => {
   if (!escrow.isActive) throw new Error('Escrow is not active.')
@@ -64,22 +59,22 @@ export const assertEscrowOnChain: AssertEscrowActive = async (
   contract,
   parameters,
 ) => {
-  const isActive = (await readContract(client, {
+  const isActive = await readContract(client, {
     abi: escrowAbi,
     address: contract,
     args: [parameters.scope, parameters.beneficiary],
     functionName: 'isEscrowActive',
-  })) as boolean
+  })
 
   if (!isActive)
     throw new Error('Escrow is not active for the expected beneficiary.')
 
-  const escrow = (await readContract(client, {
+  const escrow = await readContract(client, {
     abi: escrowAbi,
     address: contract,
     args: [parameters.scope, parameters.beneficiary],
     functionName: 'getActiveEscrow',
-  })) as EscrowState
+  })
 
   assertEscrowState(escrow, parameters)
 }

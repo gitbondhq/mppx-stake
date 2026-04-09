@@ -5,7 +5,6 @@ import { createStakeServer, type StakeServerParameters } from './stake.js'
 
 export type {
   AssertEscrowActive,
-  EscrowState,
   EscrowVerificationParams,
 } from './escrowState.js'
 
