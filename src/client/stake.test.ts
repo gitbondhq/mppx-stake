@@ -50,13 +50,16 @@ describe('client stake', () => {
     )
 
     const recovered = await recoverScopeActiveProofSigner({
+      amount: baseRequest.amount,
       beneficiary: beneficiaryAccount.address,
       chainId: baseRequest.methodDetails.chainId,
       challengeId: challenge.id,
       contract: baseRequest.contract,
+      counterparty: baseRequest.counterparty,
       expires: challenge.expires,
       scope: baseRequest.scope,
       signature: credential.payload.signature,
+      token: baseRequest.token,
     })
 
     expect(recovered).toBe(beneficiaryAccount.address)

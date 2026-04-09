@@ -12,13 +12,16 @@ const account = privateKeyToAccount(
 )
 
 const baseParameters = {
+  amount: '5000000',
   beneficiary: account.address,
   chainId: 42431,
   challengeId: 'challenge-1',
   contract: '0x1111111111111111111111111111111111111111',
+  counterparty: '0x2222222222222222222222222222222222222222',
   expires: '2026-01-01T00:00:00.000Z',
   scope:
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
+  token: '0x20C0000000000000000000000000000000000000',
 } as const
 
 describe('scopeActiveProof', () => {
@@ -32,11 +35,44 @@ describe('scopeActiveProof', () => {
     expect(recovered).toBe(account.address)
   })
 
-  it('recovers a different address when any field is tampered', async () => {
+  it('recovers a different address when challengeId is tampered', async () => {
     const signature = await signScopeActiveProof(account, baseParameters)
     const recovered = await recoverScopeActiveProofSigner({
       ...baseParameters,
       challengeId: 'challenge-2',
+      signature,
+    })
+
+    expect(recovered).not.toBe(account.address)
+  })
+
+  it('recovers a different address when amount is tampered', async () => {
+    const signature = await signScopeActiveProof(account, baseParameters)
+    const recovered = await recoverScopeActiveProofSigner({
+      ...baseParameters,
+      amount: '9999999',
+      signature,
+    })
+
+    expect(recovered).not.toBe(account.address)
+  })
+
+  it('recovers a different address when counterparty is tampered', async () => {
+    const signature = await signScopeActiveProof(account, baseParameters)
+    const recovered = await recoverScopeActiveProofSigner({
+      ...baseParameters,
+      counterparty: '0x9999999999999999999999999999999999999999',
+      signature,
+    })
+
+    expect(recovered).not.toBe(account.address)
+  })
+
+  it('recovers a different address when token is tampered', async () => {
+    const signature = await signScopeActiveProof(account, baseParameters)
+    const recovered = await recoverScopeActiveProofSigner({
+      ...baseParameters,
+      token: '0x9999999999999999999999999999999999999999',
       signature,
     })
 

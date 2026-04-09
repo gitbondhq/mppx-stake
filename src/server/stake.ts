@@ -75,13 +75,16 @@ export const createStakeServer = (method: StakeMethod) => {
 
         const payload = credential.payload as StakeCredentialPayload
         const recovered = await recoverScopeActiveProofSigner({
+          amount: challengeRequest.amount,
           beneficiary: hintedBeneficiary,
           chainId: challengeChainId,
           challengeId: credential.challenge.id,
           contract: challengeRequest.contract,
+          counterparty: challengeRequest.counterparty,
           expires: credential.challenge.expires,
           scope: challengeRequest.scope,
           signature: payload.signature,
+          token: challengeRequest.token,
         })
 
         if (

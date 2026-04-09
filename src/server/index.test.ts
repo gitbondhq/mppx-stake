@@ -73,12 +73,15 @@ const makeCredential = async (parameters?: {
 }) => {
   const request = parameters?.challengeRequest ?? challengeRequest
   const signature = await signScopeActiveProof(beneficiaryAccount, {
+    amount: request.amount,
     beneficiary,
     chainId,
     challengeId: 'test-challenge-id',
     contract,
+    counterparty: request.counterparty as `0x${string}`,
     expires,
     scope: request.scope as `0x${string}`,
+    token: request.token as `0x${string}`,
   })
 
   return {
@@ -109,12 +112,15 @@ const makeIssuedCredential = async (parameters?: {
     secretKey,
   })
   const signature = await signScopeActiveProof(beneficiaryAccount, {
+    amount: request.amount,
     beneficiary,
     chainId,
     challengeId: challenge.id,
     contract,
+    counterparty: request.counterparty as `0x${string}`,
     expires: challenge.expires,
     scope: request.scope as `0x${string}`,
+    token: request.token as `0x${string}`,
   })
 
   return {
