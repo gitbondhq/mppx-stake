@@ -213,9 +213,9 @@ or `simulateContract` against `createEscrow`).
 ## Wire compatibility
 
 The EIP-712 domain (`MPP Scope Active Stake / 1`), primary type
-(`ScopeActiveStake { challengeId, expires, scope, beneficiary }`), and DID
-source format (`did:pkh:eip155:{chainId}:{address}`) match
-[`mpp-stake-demo/packages/mppx-stake`](https://github.com/gitbondhq/mpp-stake-demo)
+(`ScopeActiveStake { challengeId, expires, scope, beneficiary, counterparty,
+token, amount }`), and DID source format (`did:pkh:eip155:{chainId}:{address}`)
+match [`mpp-stake-demo/packages/mppx-stake`](https://github.com/gitbondhq/mpp-stake-demo)
 byte-for-byte. Credentials produced against either package verify on
 either side.
 
