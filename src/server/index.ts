@@ -9,6 +9,7 @@ export type {
   EscrowVerificationParams,
 } from './escrowState.js'
 export { assertEscrowState } from './escrowState.js'
+export type { StakeServerParameters } from './stake.js'
 
 type CreateServerStakeParameters = StakeServerParameters & StakeMethodParameters
 type ServerStakeFactory = (

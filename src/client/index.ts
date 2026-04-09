@@ -3,6 +3,8 @@
 import { createStakeMethod, type StakeMethodParameters } from '../method.js'
 import { createStakeClient, type StakeClientParameters } from './stake.js'
 
+export type { StakeClientParameters } from './stake.js'
+
 type CreateClientStakeParameters = StakeClientParameters & StakeMethodParameters
 type ClientStakeFactory = (
   parameters: CreateClientStakeParameters,
