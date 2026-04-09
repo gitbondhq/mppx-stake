@@ -236,7 +236,7 @@ describe('server stake', () => {
         status: 'success',
         timestamp: expect.any(String),
       })
-      expect(mocks.createEvmClient).toHaveBeenCalledWith(chainId)
+      expect(mocks.createEvmClient).toHaveBeenCalledWith(chainId, undefined)
       expect(mocks.assertEscrowOnChain).toHaveBeenCalledWith(
         {},
         contract,
@@ -275,6 +275,22 @@ describe('server stake', () => {
         }),
       )
       expect(mocks.assertEscrowOnChain).not.toHaveBeenCalled()
+    })
+
+    it('passes a custom rpcUrl through to the evm client factory', async () => {
+      const rpcUrl = 'https://private.rpc.example.com'
+      const method = serverStake({
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        rpcUrl,
+      })
+      const credential = await makeCredential()
+
+      await method.verify({ credential, request: routeRequest })
+
+      expect(mocks.createEvmClient).toHaveBeenCalledWith(chainId, rpcUrl)
     })
 
     it('rejects a tampered challenge at the HMAC check', async () => {

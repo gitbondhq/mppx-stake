@@ -18,6 +18,12 @@ import { type AssertEscrowActive, assertEscrowOnChain } from './escrowState.js'
 
 export type StakeServerParameters = {
   chainId: number
+  /**
+   * Override the RPC endpoint used for on-chain reads. Defaults to viem's
+   * built-in public RPC for the chain — set this in production to point at
+   * a private/paid endpoint and avoid public-RPC rate limits.
+   */
+  rpcUrl?: string | undefined
   contract?: Address | undefined
   counterparty?: Address | undefined
   token?: Address | undefined
@@ -37,7 +43,7 @@ export type StakeServerParameters = {
  */
 export const createStakeServer = (method: StakeMethod) => {
   return (parameters: StakeServerParameters) => {
-    const { chainId } = parameters
+    const { chainId, rpcUrl } = parameters
     const assertEscrowActive =
       parameters.assertEscrowActive ?? assertEscrowOnChain
 
@@ -98,7 +104,7 @@ export const createStakeServer = (method: StakeMethod) => {
 
         assertSourceDidMatches(challengeChainId, credential.source, recovered)
 
-        const client = createEvmClient(challengeChainId)
+        const client = createEvmClient(challengeChainId, rpcUrl)
         await assertEscrowActive(client, challengeRequest.contract, {
           beneficiary: recovered,
           counterparty: challengeRequest.counterparty,

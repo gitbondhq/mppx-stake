@@ -96,14 +96,15 @@ reads chain state, and returns the receipt.
 
 ### Server parameters
 
-| Parameter      | Type      | Required | Notes                                                |
-| -------------- | --------- | -------- | ---------------------------------------------------- |
-| `name`         | `string`  | yes      | Method name shared with the client (e.g. `'tempo'`). |
-| `chainId`      | `number`  | yes      | Must be in [`supportedChains`](#chains).             |
-| `contract`     | `Address` | no       | Default escrow contract for this route.              |
-| `counterparty` | `Address` | no       | Default counterparty.                                |
-| `token`        | `Address` | no       | Default ERC-20 token.                                |
-| `description`  | `string`  | no       | Shown to the client in the challenge UI.             |
+| Parameter      | Type      | Required | Notes                                                       |
+| -------------- | --------- | -------- | ----------------------------------------------------------- |
+| `name`         | `string`  | yes      | Method name shared with the client (e.g. `'tempo'`).        |
+| `chainId`      | `number`  | yes      | Must be in [`supportedChains`](#chains).                    |
+| `rpcUrl`       | `string`  | no       | Override viem's default public RPC (use a paid endpoint).   |
+| `contract`     | `Address` | no       | Default escrow contract for this route.                     |
+| `counterparty` | `Address` | no       | Default counterparty.                                       |
+| `token`        | `Address` | no       | Default ERC-20 token.                                       |
+| `description`  | `string`  | no       | Shown to the client in the challenge UI.                    |
 
 `contract`, `counterparty`, and `token` are **defaults** — they can be
 overridden per-route. Anything you don't set in the configuration must be
