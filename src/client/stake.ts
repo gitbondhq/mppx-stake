@@ -3,13 +3,25 @@ import type { Account } from 'viem'
 import { isAddressEqual } from 'viem'
 
 import { getChain } from '../chains.js'
-import { brandStakeRequest, type StakeMethod } from '../method.js'
+import {
+  BENEFICIARY_BOUND_STAKE_MODE,
+  brandStakeRequest,
+  OWNER_AGNOSTIC_STAKE_MODE,
+  type StakeMethod,
+} from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 
-export type StakeClientParameters = {
-  /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
-  beneficiaryAccount: Account
-}
+export type StakeClientParameters =
+  | {
+      /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
+      beneficiaryAccount: Account
+      verifyBeneficiaryStake?: true
+    }
+  | {
+      /** Not required when `verifyBeneficiaryStake: false` skips signature creation. */
+      beneficiaryAccount?: Account
+      verifyBeneficiaryStake: false
+    }
 
 /**
  * Turns the shared stake schema into a client method that signs a typed-data
@@ -19,14 +31,31 @@ export type StakeClientParameters = {
  * responsible for having created the escrow before the credential is signed.
  */
 export const createStakeClient = (method: StakeMethod) => {
-  return ({ beneficiaryAccount }: StakeClientParameters) => {
+  return (parameters: StakeClientParameters) => {
     return Method.toClient(method, {
       async createCredential({ challenge }) {
         const request = brandStakeRequest(challenge.request)
         const chainId = request.methodDetails.chainId
+        const beneficiaryAccount = parameters.beneficiaryAccount
 
         // Surface unsupported chains here rather than waiting for the server.
         getChain(chainId)
+
+        if (request.mode === OWNER_AGNOSTIC_STAKE_MODE)
+          return Credential.serialize({
+            challenge,
+            payload: { type: request.mode },
+          })
+
+        if (parameters.verifyBeneficiaryStake === false)
+          throw new Error(
+            `Challenge mode ${request.mode} requires beneficiary proof creation.`,
+          )
+
+        if (!beneficiaryAccount)
+          throw new Error(
+            `beneficiaryAccount is required for ${request.mode} challenges.`,
+          )
 
         if (
           request.beneficiary &&
@@ -52,7 +81,10 @@ export const createStakeClient = (method: StakeMethod) => {
 
         return Credential.serialize({
           challenge,
-          payload: { signature, type: 'scope-active' },
+          payload: {
+            signature,
+            type: BENEFICIARY_BOUND_STAKE_MODE,
+          },
           source: `did:pkh:eip155:${chainId}:${beneficiaryAccount.address}`,
         })
       },

@@ -15,7 +15,7 @@ export type EscrowRecord = ReadContractReturnType<
 >
 
 export type EscrowVerificationParams = {
-  beneficiary: Address
+  beneficiary?: Address
   counterparty: Address
   scope: Hex
   token: Address
@@ -28,11 +28,12 @@ export const assertEscrowState = (
   parameters: EscrowVerificationParams,
 ) => {
   if (!escrow.isActive) throw new Error('Escrow is not active.')
-  assertAddress(
-    'escrow.beneficiary',
-    escrow.beneficiary,
-    parameters.beneficiary,
-  )
+  if (parameters.beneficiary)
+    assertAddress(
+      'escrow.beneficiary',
+      escrow.beneficiary,
+      parameters.beneficiary,
+    )
   assertAddress(
     'escrow.counterparty',
     escrow.counterparty,
@@ -62,6 +63,11 @@ export const assertEscrowOnChain: AssertEscrowActive = async (
   contract,
   parameters,
 ) => {
+  if (!parameters.beneficiary)
+    throw new Error(
+      'Default escrow verification requires a beneficiary. Provide one in the challenge/source or override assertEscrowActive.',
+    )
+
   const isActive = await readContract(client, {
     abi: escrowAbi,
     address: contract,
