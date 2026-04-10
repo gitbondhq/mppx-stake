@@ -28,6 +28,10 @@
       "default": "./dist/server/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitbondhq/mppx-stake"
+  },
   "engines": {
     "node": ">=24.0.0"
   },
