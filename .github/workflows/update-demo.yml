@@ -29,7 +29,7 @@ jobs:
           mkdir -p demo/packages/mppx-stake
 
           cp -r source/src demo/packages/mppx-stake/
-          for file in .editorconfig .gitattributes .gitignore README.md package.json tsconfig.json; do
+          for file in .editorconfig .gitattributes .gitignore README.md package.json tsconfig.json tsconfig.build.json; do
             [ -e "source/$file" ] && cp "source/$file" "demo/packages/mppx-stake/"
           done
 
