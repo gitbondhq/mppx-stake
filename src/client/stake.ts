@@ -10,17 +10,14 @@ import {
 } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 
-export type StakeClientParameters =
-  | {
-      /** The beneficiary's signing account. Produces the scope-active EIP-712 proof. */
-      beneficiaryAccount: Account
-      verifyBeneficiaryStake?: true
-    }
-  | {
-      /** Not required when `verifyBeneficiaryStake: false` skips signature creation. */
-      beneficiaryAccount?: Account
-      verifyBeneficiaryStake: false
-    }
+export type StakeClientParameters = {
+  /**
+   * The beneficiary's signing account. Required when the server issues a
+   * {@link StakeAuthorizationMode.BENEFICIARY_BOUND} challenge; ignored for
+   * {@link StakeAuthorizationMode.OWNER_AGNOSTIC} challenges.
+   */
+  beneficiaryAccount?: Account
+}
 
 /**
  * Turns the shared stake schema into a client method that signs a typed-data
@@ -45,11 +42,6 @@ export const createStakeClient = (method: StakeMethod) => {
             challenge,
             payload: { type: request.mode },
           })
-
-        if (parameters.verifyBeneficiaryStake === false)
-          throw new Error(
-            `Challenge mode ${request.mode} requires beneficiary proof creation.`,
-          )
 
         if (!beneficiaryAccount)
           throw new Error(

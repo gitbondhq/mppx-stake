@@ -108,10 +108,8 @@ describe('client stake', () => {
     )
   })
 
-  it('omits the signature and source when verifyBeneficiaryStake is false', async () => {
-    const method = createStakeClient(stakeMethod)({
-      verifyBeneficiaryStake: false,
-    })
+  it('omits the signature and source for owner-agnostic challenges without a beneficiary account', async () => {
+    const method = createStakeClient(stakeMethod)({})
     const challenge = makeChallenge({
       ...baseRequest,
       mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
@@ -125,7 +123,7 @@ describe('client stake', () => {
     expect(credential.source).toBeUndefined()
   })
 
-  it('omits the signature for scope-active challenges even with a beneficiary account', async () => {
+  it('omits the signature for owner-agnostic challenges even with a beneficiary account', async () => {
     const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
     const challenge = makeChallenge({
       ...baseRequest,
@@ -140,14 +138,12 @@ describe('client stake', () => {
     expect(credential.source).toBeUndefined()
   })
 
-  it('rejects verifyBeneficiaryStake false for scope-beneficiary-active challenges', async () => {
-    const method = createStakeClient(stakeMethod)({
-      verifyBeneficiaryStake: false,
-    })
+  it('throws when beneficiaryAccount is missing for a beneficiary-bound challenge', async () => {
+    const method = createStakeClient(stakeMethod)({})
     const challenge = makeChallenge() as CredentialChallenge
 
     await expect(method.createCredential({ challenge })).rejects.toThrow(
-      /requires beneficiary proof creation/i,
+      /beneficiaryAccount is required/i,
     )
   })
 })
