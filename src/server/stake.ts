@@ -4,7 +4,6 @@ import { isAddressEqual } from 'viem'
 
 import {
   brandStakeRequest,
-  modeRequiresBeneficiaryProof,
   StakeAuthorizationMode,
   type StakeChallengeRequest,
   type StakeCredentialPayload,
@@ -66,7 +65,7 @@ export const createStakeServer = (method: StakeMethod) => {
     const { chainId, consumeChallenge, rpcUrl } = parameters
     const mode = parameters.mode ?? StakeAuthorizationMode.BENEFICIARY_BOUND
 
-    if (!modeRequiresBeneficiaryProof(mode) && !parameters.assertEscrowActive)
+    if (mode === StakeAuthorizationMode.OWNER_AGNOSTIC && !parameters.assertEscrowActive)
       throw new Error(
         'OWNER_AGNOSTIC mode requires a custom assertEscrowActive because the default verifier is beneficiary-bound.',
       )
@@ -104,7 +103,6 @@ export const createStakeServer = (method: StakeMethod) => {
           }),
         )
         assertRequestMatches(currentRequest, challengeRequest)
-        const verifyProof = modeRequiresBeneficiaryProof(challengeRequest.mode)
 
         const challengeChainId = challengeRequest.methodDetails.chainId
         const payload = credential.payload as StakeCredentialPayload
@@ -117,8 +115,8 @@ export const createStakeServer = (method: StakeMethod) => {
           challengeChainId,
           challengeRequest,
           credential,
+          mode,
           payload,
-          verifyProof,
         })
 
         // Replay protection runs after we've decided the credential is
@@ -152,23 +150,22 @@ const resolveVerifiedBeneficiary = async ({
   challengeChainId,
   challengeRequest,
   credential,
+  mode,
   payload,
-  verifyProof,
 }: {
   challengeChainId: number
   challengeRequest: StakeChallengeRequest
   credential: Credential.Credential
+  mode: StakeAuthorizationMode
   payload: StakeCredentialPayload
-  verifyProof: boolean
 }): Promise<Address | undefined> => {
-  if (!verifyProof) return challengeRequest.beneficiary ?? undefined
+  if (mode !== StakeAuthorizationMode.BENEFICIARY_BOUND)
+    return challengeRequest.beneficiary ?? undefined
 
   if (!('signature' in payload) || !payload.signature)
     throw new Error(
       'Stake credential is missing the scope-beneficiary-active signature.',
     )
-
-  const signature = payload.signature
 
   const hintedBeneficiary =
     challengeRequest.beneficiary ??
@@ -183,7 +180,7 @@ const resolveVerifiedBeneficiary = async ({
     counterparty: challengeRequest.counterparty,
     expires: credential.challenge.expires,
     scope: challengeRequest.scope,
-    signature,
+    signature: payload.signature,
     token: challengeRequest.token,
   })
 

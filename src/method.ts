@@ -35,9 +35,6 @@ export enum StakeAuthorizationMode {
   OWNER_AGNOSTIC = 'scope-active',
 }
 
-export const modeRequiresBeneficiaryProof = (mode: StakeAuthorizationMode) =>
-  mode === StakeAuthorizationMode.BENEFICIARY_BOUND
-
 export type StakeChallengeRequest = {
   amount: string
   beneficiary?: Address | undefined
