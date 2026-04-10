@@ -4,9 +4,8 @@ import { isAddressEqual } from 'viem'
 
 import { getChain } from '../chains.js'
 import {
-  BENEFICIARY_BOUND_STAKE_MODE,
   brandStakeRequest,
-  OWNER_AGNOSTIC_STAKE_MODE,
+  StakeAuthorizationMode,
   type StakeMethod,
 } from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
@@ -41,7 +40,7 @@ export const createStakeClient = (method: StakeMethod) => {
         // Surface unsupported chains here rather than waiting for the server.
         getChain(chainId)
 
-        if (request.mode === OWNER_AGNOSTIC_STAKE_MODE)
+        if (request.mode === StakeAuthorizationMode.OWNER_AGNOSTIC)
           return Credential.serialize({
             challenge,
             payload: { type: request.mode },
@@ -83,7 +82,7 @@ export const createStakeClient = (method: StakeMethod) => {
           challenge,
           payload: {
             signature,
-            type: BENEFICIARY_BOUND_STAKE_MODE,
+            type: StakeAuthorizationMode.BENEFICIARY_BOUND,
           },
           source: `did:pkh:eip155:${chainId}:${beneficiaryAccount.address}`,
         })

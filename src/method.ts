@@ -30,22 +30,20 @@ const ecdsaSignature = () =>
 
 // ── Stake challenge request ──────────────────────────────────────────────
 
-export const BENEFICIARY_BOUND_STAKE_MODE = 'scope-beneficiary-active'
-export const OWNER_AGNOSTIC_STAKE_MODE = 'scope-active'
-
-export type StakeAuthorizationMode =
-  | typeof BENEFICIARY_BOUND_STAKE_MODE
-  | typeof OWNER_AGNOSTIC_STAKE_MODE
+export enum StakeAuthorizationMode {
+  BENEFICIARY_BOUND = 'scope-beneficiary-active',
+  OWNER_AGNOSTIC = 'scope-active',
+}
 
 export const getStakeAuthorizationMode = (parameters: {
   verifyBeneficiaryStake?: boolean
 }): StakeAuthorizationMode =>
   parameters.verifyBeneficiaryStake === false
-    ? OWNER_AGNOSTIC_STAKE_MODE
-    : BENEFICIARY_BOUND_STAKE_MODE
+    ? StakeAuthorizationMode.OWNER_AGNOSTIC
+    : StakeAuthorizationMode.BENEFICIARY_BOUND
 
 export const modeRequiresBeneficiaryProof = (mode: StakeAuthorizationMode) =>
-  mode === BENEFICIARY_BOUND_STAKE_MODE
+  mode === StakeAuthorizationMode.BENEFICIARY_BOUND
 
 export type StakeChallengeRequest = {
   amount: string
@@ -72,8 +70,8 @@ const stakeRequestSchema = z.object({
   description: z.optional(z.string()),
   externalId: z.optional(z.string()),
   mode: z.union([
-    z.literal(BENEFICIARY_BOUND_STAKE_MODE),
-    z.literal(OWNER_AGNOSTIC_STAKE_MODE),
+    z.literal(StakeAuthorizationMode.BENEFICIARY_BOUND),
+    z.literal(StakeAuthorizationMode.OWNER_AGNOSTIC),
   ]),
   policy: z.optional(z.string()),
   resource: z.optional(z.string()),
@@ -89,19 +87,19 @@ const stakeRequestSchema = z.object({
 export type StakeCredentialPayload =
   | {
       signature: Hex
-      type: typeof BENEFICIARY_BOUND_STAKE_MODE
+      type: StakeAuthorizationMode.BENEFICIARY_BOUND
     }
   | {
-      type: typeof OWNER_AGNOSTIC_STAKE_MODE
+      type: StakeAuthorizationMode.OWNER_AGNOSTIC
     }
 
 const stakeCredentialPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     signature: ecdsaSignature(),
-    type: z.literal(BENEFICIARY_BOUND_STAKE_MODE),
+    type: z.literal(StakeAuthorizationMode.BENEFICIARY_BOUND),
   }),
   z.strictObject({
-    type: z.literal(OWNER_AGNOSTIC_STAKE_MODE),
+    type: z.literal(StakeAuthorizationMode.OWNER_AGNOSTIC),
   }),
 ])
 

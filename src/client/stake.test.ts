@@ -3,10 +3,8 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
 
 import {
-  BENEFICIARY_BOUND_STAKE_MODE,
   createStakeMethod,
-  OWNER_AGNOSTIC_STAKE_MODE,
-  type StakeAuthorizationMode,
+  StakeAuthorizationMode,
   type StakeCredentialPayload,
 } from '../method.js'
 import { recoverScopeActiveProofSigner } from '../shared/scopeActiveProof.js'
@@ -25,7 +23,7 @@ const baseRequest = {
   amount: '5000000',
   contract: '0x1111111111111111111111111111111111111111' as const,
   counterparty: '0x2222222222222222222222222222222222222222' as const,
-  mode: BENEFICIARY_BOUND_STAKE_MODE as StakeAuthorizationMode,
+  mode: StakeAuthorizationMode.BENEFICIARY_BOUND,
   token: '0x20C0000000000000000000000000000000000000' as const,
   scope:
     '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const,
@@ -58,8 +56,8 @@ describe('client stake', () => {
     const credential =
       Credential.deserialize<StakeCredentialPayload>(serialized)
 
-    expect(credential.payload.type).toBe(BENEFICIARY_BOUND_STAKE_MODE)
-    if (credential.payload.type !== BENEFICIARY_BOUND_STAKE_MODE)
+    expect(credential.payload.type).toBe(StakeAuthorizationMode.BENEFICIARY_BOUND)
+    if (credential.payload.type !== StakeAuthorizationMode.BENEFICIARY_BOUND)
       throw new Error(
         'Expected a scope-beneficiary-active payload in this test.',
       )
@@ -116,7 +114,7 @@ describe('client stake', () => {
     })
     const challenge = makeChallenge({
       ...baseRequest,
-      mode: OWNER_AGNOSTIC_STAKE_MODE,
+      mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
     }) as CredentialChallenge
 
     const serialized = await method.createCredential({ challenge })
@@ -131,7 +129,7 @@ describe('client stake', () => {
     const method = createStakeClient(stakeMethod)({ beneficiaryAccount })
     const challenge = makeChallenge({
       ...baseRequest,
-      mode: OWNER_AGNOSTIC_STAKE_MODE,
+      mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
     }) as CredentialChallenge
 
     const serialized = await method.createCredential({ challenge })
