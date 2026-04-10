@@ -65,7 +65,10 @@ export const createStakeServer = (method: StakeMethod) => {
     const { chainId, consumeChallenge, rpcUrl } = parameters
     const mode = parameters.mode ?? StakeAuthorizationMode.BENEFICIARY_BOUND
 
-    if (mode === StakeAuthorizationMode.OWNER_AGNOSTIC && !parameters.assertEscrowActive)
+    if (
+      mode === StakeAuthorizationMode.OWNER_AGNOSTIC &&
+      !parameters.assertEscrowActive
+    )
       throw new Error(
         'OWNER_AGNOSTIC mode requires a custom assertEscrowActive because the default verifier is beneficiary-bound.',
       )
