@@ -1,0 +1,45 @@
+name: Update Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout demo
+        uses: actions/checkout@v4
+        with:
+          repository: gitbondhq/mpp-stake-demo
+          token: ${{ secrets.DEMO_REPO_TOKEN }}
+          path: demo
+
+      - name: Get source version
+        id: version
+        run: echo "version=$(node -p "require('./source/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Update demo package
+        run: |
+          rm -rf demo/packages/mppx-stake
+          mkdir -p demo/packages/mppx-stake
+
+          cp -r source/src demo/packages/mppx-stake/
+          for file in .editorconfig .gitattributes .gitignore README.md package.json tsconfig.json; do
+            [ -e "source/$file" ] && cp "source/$file" "demo/packages/mppx-stake/"
+          done
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.DEMO_REPO_TOKEN }}
+          path: demo
+          branch: update-mppx-stake-${{ steps.version.outputs.version }}
+          commit-message: "Update mppx-stake to ${{ steps.version.outputs.version }}"
+          title: "Update mppx-stake to ${{ steps.version.outputs.version }}"
+          body: |
+            Updates `packages/mppx-stake` from [mppx-stake@${{ steps.version.outputs.version }}](https://github.com/gitbondhq/mppx-stake).
