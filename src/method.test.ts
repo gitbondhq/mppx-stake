@@ -1,7 +1,11 @@
 import { PaymentRequest } from 'mppx'
 import { describe, expect, it } from 'vitest'
 
-import { createStakeMethod, StakeAuthorizationMode } from './method.js'
+import {
+  brandStakeRequest,
+  createStakeMethod,
+  StakeAuthorizationMode,
+} from './method.js'
 
 const request = {
   amount: '5000000',
@@ -76,6 +80,22 @@ describe('stake method schema', () => {
         type: StakeAuthorizationMode.OWNER_AGNOSTIC,
       }),
     ).toThrow()
+  })
+
+  it('preserves empty-string optional request fields when branding', () => {
+    const parsed = PaymentRequest.fromMethod(stakeMethod, {
+      ...request,
+      description: '',
+      externalId: '',
+      policy: '',
+      resource: '',
+    })
+    const branded = brandStakeRequest(parsed)
+
+    expect(branded).toHaveProperty('description', '')
+    expect(branded).toHaveProperty('externalId', '')
+    expect(branded).toHaveProperty('policy', '')
+    expect(branded).toHaveProperty('resource', '')
   })
 
   it('rejects unknown credential payload variants', () => {
