@@ -30,6 +30,23 @@ const ecdsaSignature = () =>
 
 // ── Stake challenge request ──────────────────────────────────────────────
 
+export const BENEFICIARY_BOUND_STAKE_MODE = 'scope-beneficiary-active'
+export const OWNER_AGNOSTIC_STAKE_MODE = 'scope-active'
+
+export type StakeAuthorizationMode =
+  | typeof BENEFICIARY_BOUND_STAKE_MODE
+  | typeof OWNER_AGNOSTIC_STAKE_MODE
+
+export const getStakeAuthorizationMode = (parameters: {
+  verifyBeneficiaryStake?: boolean
+}): StakeAuthorizationMode =>
+  parameters.verifyBeneficiaryStake === false
+    ? OWNER_AGNOSTIC_STAKE_MODE
+    : BENEFICIARY_BOUND_STAKE_MODE
+
+export const modeRequiresBeneficiaryProof = (mode: StakeAuthorizationMode) =>
+  mode === BENEFICIARY_BOUND_STAKE_MODE
+
 export type StakeChallengeRequest = {
   amount: string
   beneficiary?: Address | undefined
@@ -37,6 +54,7 @@ export type StakeChallengeRequest = {
   counterparty: Address
   description?: string | undefined
   externalId?: string | undefined
+  mode: StakeAuthorizationMode
   policy?: string | undefined
   resource?: string | undefined
   scope: Hex
@@ -53,6 +71,10 @@ const stakeRequestSchema = z.object({
   counterparty: z.address(),
   description: z.optional(z.string()),
   externalId: z.optional(z.string()),
+  mode: z.union([
+    z.literal(BENEFICIARY_BOUND_STAKE_MODE),
+    z.literal(OWNER_AGNOSTIC_STAKE_MODE),
+  ]),
   policy: z.optional(z.string()),
   resource: z.optional(z.string()),
   scope: z.hash(),
@@ -64,15 +86,24 @@ const stakeRequestSchema = z.object({
 
 // ── Stake credential payload ─────────────────────────────────────────────
 
-export type StakeCredentialPayload = {
-  signature: Hex
-  type: 'scope-active'
-}
+export type StakeCredentialPayload =
+  | {
+      signature: Hex
+      type: typeof BENEFICIARY_BOUND_STAKE_MODE
+    }
+  | {
+      type: typeof OWNER_AGNOSTIC_STAKE_MODE
+    }
 
-const stakeCredentialPayloadSchema = z.object({
-  signature: ecdsaSignature(),
-  type: z.literal('scope-active'),
-})
+const stakeCredentialPayloadSchema = z.discriminatedUnion('type', [
+  z.object({
+    signature: ecdsaSignature(),
+    type: z.literal(BENEFICIARY_BOUND_STAKE_MODE),
+  }),
+  z.strictObject({
+    type: z.literal(OWNER_AGNOSTIC_STAKE_MODE),
+  }),
+])
 
 // ── Method factory ───────────────────────────────────────────────────────
 
@@ -126,6 +157,7 @@ export const brandStakeRequest = (
   counterparty: getAddress(raw.counterparty),
   ...(raw.description ? { description: raw.description } : {}),
   ...(raw.externalId ? { externalId: raw.externalId } : {}),
+  mode: raw.mode,
   ...(raw.policy ? { policy: raw.policy } : {}),
   ...(raw.resource ? { resource: raw.resource } : {}),
   scope: raw.scope as Hex,

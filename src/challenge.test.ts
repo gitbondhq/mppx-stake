@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { StakeChallenge } from './challenge.js'
 import { parseStakeChallenge } from './challenge.js'
-import { createStakeMethod } from './method.js'
+import { BENEFICIARY_BOUND_STAKE_MODE, createStakeMethod } from './method.js'
 
 const methodName = 'tempo'
 const stakeMethod = createStakeMethod({ name: methodName })
@@ -16,6 +16,7 @@ const request = {
   token: '0x20C0000000000000000000000000000000000000',
   description: 'Stake required',
   externalId: 'github:owner/repo:pr:1',
+  mode: BENEFICIARY_BOUND_STAKE_MODE,
   policy: 'repo-pr-v1',
   resource: 'owner/repo#1',
   scope: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',

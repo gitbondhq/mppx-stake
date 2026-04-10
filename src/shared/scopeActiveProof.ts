@@ -78,3 +78,7 @@ export const recoverScopeActiveProofSigner = async (
     ...getScopeActiveTypedData(parameters),
     signature: parameters.signature,
   })
+
+export const shouldVerifyBeneficiaryStake = (parameters: {
+  verifyBeneficiaryStake?: boolean
+}) => parameters.verifyBeneficiaryStake !== false

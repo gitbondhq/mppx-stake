@@ -1,10 +1,15 @@
 import { Challenge, Credential, PaymentRequest } from 'mppx'
 import { Mppx, tempo as upstreamTempo } from 'mppx/server'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createStakeMethod } from '../method.js'
+import {
+  BENEFICIARY_BOUND_STAKE_MODE,
+  createStakeMethod,
+  OWNER_AGNOSTIC_STAKE_MODE,
+  type StakeCredentialPayload,
+} from '../method.js'
 import { signScopeActiveProof } from '../shared/scopeActiveProof.js'
 import { serverStake } from './index.js'
 
@@ -33,6 +38,7 @@ const rawInput = {
   contract,
   counterparty,
   externalId,
+  mode: BENEFICIARY_BOUND_STAKE_MODE as typeof BENEFICIARY_BOUND_STAKE_MODE,
   policy,
   resource,
   scope,
@@ -44,15 +50,23 @@ const routeRequest = {
   contract: rawInput.contract,
   counterparty: rawInput.counterparty,
   externalId: rawInput.externalId,
+  mode: rawInput.mode,
   policy: rawInput.policy,
   resource: rawInput.resource,
   scope: rawInput.scope,
   token: rawInput.token,
   methodDetails: { chainId },
 }
+const routeChallengeRequest = {
+  ...routeRequest,
+}
 
 const stakeMethod = createStakeMethod({ name: methodName })
 const challengeRequest = PaymentRequest.fromMethod(stakeMethod, rawInput)
+const scopeActiveChallengeRequest = PaymentRequest.fromMethod(stakeMethod, {
+  ...rawInput,
+  mode: OWNER_AGNOSTIC_STAKE_MODE,
+})
 
 const mocks = vi.hoisted(() => ({
   assertEscrowOnChain: vi.fn().mockResolvedValue(undefined),
@@ -75,25 +89,48 @@ type ProofOverrides = {
   token?: `0x${string}`
 }
 
+const createCredentialPayload = (parameters: {
+  mode: typeof challengeRequest.mode
+  signature?: Hex
+}): StakeCredentialPayload => {
+  if (parameters.mode === BENEFICIARY_BOUND_STAKE_MODE) {
+    if (!parameters.signature)
+      throw new Error(
+        'Test setup error: scope-beneficiary-active payload requires a signature.',
+      )
+
+    return {
+      signature: parameters.signature,
+      type: BENEFICIARY_BOUND_STAKE_MODE,
+    }
+  }
+
+  return { type: OWNER_AGNOSTIC_STAKE_MODE }
+}
+
 const makeCredential = async (parameters?: {
   challengeRequest?: typeof challengeRequest
+  includeSignature?: boolean
   proofOverrides?: ProofOverrides
-  source?: string | undefined
+  source?: string
 }) => {
   const request = parameters?.challengeRequest ?? challengeRequest
   const proof = parameters?.proofOverrides
-  const signature = await signScopeActiveProof(beneficiaryAccount, {
-    amount: proof?.amount ?? request.amount,
-    beneficiary,
-    chainId,
-    challengeId: 'test-challenge-id',
-    contract,
-    counterparty:
-      proof?.counterparty ?? (request.counterparty as `0x${string}`),
-    expires,
-    scope: proof?.scope ?? (request.scope as `0x${string}`),
-    token: proof?.token ?? (request.token as `0x${string}`),
-  })
+  const signature =
+    parameters?.includeSignature === false
+      ? undefined
+      : await signScopeActiveProof(beneficiaryAccount, {
+          amount: proof?.amount ?? request.amount,
+          beneficiary,
+          chainId,
+          challengeId: 'test-challenge-id',
+          contract,
+          counterparty:
+            proof?.counterparty ?? (request.counterparty as `0x${string}`),
+          expires,
+          scope: proof?.scope ?? (request.scope as `0x${string}`),
+          token: proof?.token ?? (request.token as `0x${string}`),
+        })
 
   // Discriminate "explicitly passed undefined" from "not passed at all" so the
   // requires-source-DID test can produce a credential with no source.
@@ -111,10 +148,10 @@ const makeCredential = async (parameters?: {
       realm,
       request,
     },
-    payload: {
+    payload: createCredentialPayload({
+      mode: request.mode,
       signature,
-      type: 'scope-active' as const,
-    },
+    }),
     source,
   }
 }
@@ -143,10 +180,10 @@ const makeIssuedCredential = async (parameters?: {
 
   return {
     challenge,
-    payload: {
+    payload: createCredentialPayload({
+      mode: request.mode,
       signature,
-      type: 'scope-active' as const,
-    },
+    }),
     source: `did:pkh:eip155:${chainId}:${beneficiary}`,
   }
 }
@@ -197,6 +234,7 @@ describe('server stake', () => {
       counterparty,
       token,
       description: 'Stake required',
+      mode: BENEFICIARY_BOUND_STAKE_MODE,
       methodDetails: { chainId },
     })
     expect(method.defaults).not.toHaveProperty('externalId')
@@ -216,8 +254,7 @@ describe('server stake', () => {
     })
 
     expect(request).toEqual({
-      ...routeRequest,
-      methodDetails: { chainId },
+      ...routeChallengeRequest,
     })
   })
 
@@ -423,7 +460,10 @@ describe('server stake', () => {
           ...issuedCredential.challenge,
           request: tamperedRequest,
         },
-        payload: { signature, type: 'scope-active' as const },
+        payload: createCredentialPayload({
+          mode: tamperedRequest.mode,
+          signature,
+        }),
       }
 
       const stakeHandler = mppx.stake
@@ -472,6 +512,42 @@ describe('server stake', () => {
       ).rejects.toThrow(/does not match/i)
     })
 
+    it('rejects when the payload type does not match the challenged mode', async () => {
+      const method = serverStake({ chainId, contract, token, name: methodName })
+      const credential = await makeCredential()
+
+      await expect(
+        method.verify({
+          credential: {
+            ...credential,
+            payload: { type: OWNER_AGNOSTIC_STAKE_MODE },
+          },
+          request: routeRequest,
+        }),
+      ).rejects.toThrow(/payload type does not match the challenged mode/i)
+    })
+
+    it('allows an echoed beneficiary when the current route does not pin one', async () => {
+      const method = serverStake({ chainId, contract, token, name: methodName })
+      const requestWithBeneficiary = PaymentRequest.fromMethod(stakeMethod, {
+        ...rawInput,
+        beneficiary,
+      })
+      const credential = await makeCredential({
+        challengeRequest: requestWithBeneficiary,
+      })
+
+      await expect(
+        method.verify({ credential, request: routeRequest }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          method: methodName,
+          reference: `${contract}:${scope}:${beneficiary}`,
+          status: 'success',
+        }),
+      )
+    })
+
     it('rejects when the challenge resource does not match', async () => {
       const method = serverStake({ chainId, contract, token, name: methodName })
       const mismatchedRequest = PaymentRequest.fromMethod(stakeMethod, {
@@ -518,6 +594,101 @@ describe('server stake', () => {
       await expect(
         method.verify({ credential, request: routeRequest }),
       ).rejects.toThrow(/recovered beneficiary/i)
+    })
+
+    it('rejects verifyBeneficiaryStake false without a custom escrow verifier', () => {
+      expect(() =>
+        serverStake({
+          chainId,
+          contract,
+          token,
+          name: methodName,
+          verifyBeneficiaryStake: false,
+        }),
+      ).toThrow(/custom assertEscrowActive/i)
+    })
+
+    it('derives scope-active mode from verifyBeneficiaryStake false', () => {
+      const method = serverStake({
+        assertEscrowActive: vi.fn().mockResolvedValue(undefined),
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        verifyBeneficiaryStake: false,
+      })
+
+      expect(method.defaults).toEqual(
+        expect.objectContaining({
+          mode: OWNER_AGNOSTIC_STAKE_MODE,
+        }),
+      )
+    })
+
+    it('lets custom escrow verification ignore beneficiary when verifyBeneficiaryStake is false', async () => {
+      const customAssert = vi.fn().mockResolvedValue(undefined)
+      const method = serverStake({
+        assertEscrowActive: customAssert,
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        verifyBeneficiaryStake: false,
+      })
+      const credential = await makeCredential({
+        challengeRequest: scopeActiveChallengeRequest,
+        includeSignature: false,
+        source: undefined,
+      })
+
+      const result = await method.verify({ credential, request: routeRequest })
+
+      expect(result).toEqual({
+        method: methodName,
+        reference: `${contract}:${scope}`,
+        status: 'success',
+        timestamp: expect.any(String),
+      })
+      expect(customAssert).toHaveBeenCalledWith(
+        {},
+        contract,
+        expect.objectContaining({
+          beneficiary: undefined,
+          counterparty,
+          scope,
+          token,
+          value: 5_000_000n,
+        }),
+      )
+    })
+
+    it('does not resolve beneficiary from source when verifyBeneficiaryStake is false', async () => {
+      const customAssert = vi.fn().mockResolvedValue(undefined)
+      const method = serverStake({
+        assertEscrowActive: customAssert,
+        chainId,
+        contract,
+        token,
+        name: methodName,
+        verifyBeneficiaryStake: false,
+      })
+      const spoofedBeneficiary =
+        '0x4444444444444444444444444444444444444444' as Address
+      const credential = await makeCredential({
+        challengeRequest: scopeActiveChallengeRequest,
+        includeSignature: false,
+        source: `did:pkh:eip155:${chainId}:${spoofedBeneficiary}`,
+      })
+
+      await method.verify({ credential, request: routeRequest })
+
+      expect(customAssert).toHaveBeenCalledWith(
+        {},
+        contract,
+        expect.objectContaining({
+          beneficiary: undefined,
+        }),
+      )
     })
   })
 })
