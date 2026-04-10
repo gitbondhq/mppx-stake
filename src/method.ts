@@ -35,13 +35,6 @@ export enum StakeAuthorizationMode {
   OWNER_AGNOSTIC = 'scope-active',
 }
 
-export const getStakeAuthorizationMode = (parameters: {
-  verifyBeneficiaryStake?: boolean
-}): StakeAuthorizationMode =>
-  parameters.verifyBeneficiaryStake === false
-    ? StakeAuthorizationMode.OWNER_AGNOSTIC
-    : StakeAuthorizationMode.BENEFICIARY_BOUND
-
 export const modeRequiresBeneficiaryProof = (mode: StakeAuthorizationMode) =>
   mode === StakeAuthorizationMode.BENEFICIARY_BOUND
 

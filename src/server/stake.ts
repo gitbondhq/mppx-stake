@@ -4,8 +4,8 @@ import { isAddressEqual } from 'viem'
 
 import {
   brandStakeRequest,
-  getStakeAuthorizationMode,
   modeRequiresBeneficiaryProof,
+  StakeAuthorizationMode,
   type StakeChallengeRequest,
   type StakeCredentialPayload,
   type StakeMethod,
@@ -20,10 +20,10 @@ import { type AssertEscrowActive, assertEscrowOnChain } from './escrowState.js'
 
 export type StakeServerParameters = {
   /**
-   * Defaults to beneficiary-bound proof verification. Set to `false` only when
-   * you provide a custom `assertEscrowActive` for owner-agnostic scope checks.
+   * The authorization mode for stake challenges. Defaults to
+   * {@link StakeAuthorizationMode.BENEFICIARY_BOUND}.
    */
-  verifyBeneficiaryStake?: boolean
+  mode?: StakeAuthorizationMode
   chainId: number
   /**
    * Override the RPC endpoint used for on-chain reads. Defaults to viem's
@@ -64,11 +64,11 @@ export type StakeServerParameters = {
 export const createStakeServer = (method: StakeMethod) => {
   return (parameters: StakeServerParameters) => {
     const { chainId, consumeChallenge, rpcUrl } = parameters
-    const mode = getStakeAuthorizationMode(parameters)
+    const mode = parameters.mode ?? StakeAuthorizationMode.BENEFICIARY_BOUND
 
     if (!modeRequiresBeneficiaryProof(mode) && !parameters.assertEscrowActive)
       throw new Error(
-        'verifyBeneficiaryStake: false requires a custom assertEscrowActive because the default verifier is beneficiary-bound.',
+        'OWNER_AGNOSTIC mode requires a custom assertEscrowActive because the default verifier is beneficiary-bound.',
       )
 
     const assertEscrowActive =

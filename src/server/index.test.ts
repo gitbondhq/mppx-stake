@@ -595,26 +595,26 @@ describe('server stake', () => {
       ).rejects.toThrow(/recovered beneficiary/i)
     })
 
-    it('rejects verifyBeneficiaryStake false without a custom escrow verifier', () => {
+    it('rejects owner-agnostic mode without a custom escrow verifier', () => {
       expect(() =>
         serverStake({
           chainId,
           contract,
           token,
           name: methodName,
-          verifyBeneficiaryStake: false,
+          mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
         }),
       ).toThrow(/custom assertEscrowActive/i)
     })
 
-    it('derives scope-active mode from verifyBeneficiaryStake false', () => {
+    it('sets owner-agnostic mode in defaults', () => {
       const method = serverStake({
         assertEscrowActive: vi.fn().mockResolvedValue(undefined),
         chainId,
         contract,
         token,
         name: methodName,
-        verifyBeneficiaryStake: false,
+        mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
       })
 
       expect(method.defaults).toEqual(
@@ -624,7 +624,7 @@ describe('server stake', () => {
       )
     })
 
-    it('lets custom escrow verification ignore beneficiary when verifyBeneficiaryStake is false', async () => {
+    it('lets custom escrow verification ignore beneficiary in owner-agnostic mode', async () => {
       const customAssert = vi.fn().mockResolvedValue(undefined)
       const method = serverStake({
         assertEscrowActive: customAssert,
@@ -632,7 +632,7 @@ describe('server stake', () => {
         contract,
         token,
         name: methodName,
-        verifyBeneficiaryStake: false,
+        mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
       })
       const credential = await makeCredential({
         challengeRequest: scopeActiveChallengeRequest,
@@ -661,7 +661,7 @@ describe('server stake', () => {
       )
     })
 
-    it('does not resolve beneficiary from source when verifyBeneficiaryStake is false', async () => {
+    it('does not resolve beneficiary from source in owner-agnostic mode', async () => {
       const customAssert = vi.fn().mockResolvedValue(undefined)
       const method = serverStake({
         assertEscrowActive: customAssert,
@@ -669,7 +669,7 @@ describe('server stake', () => {
         contract,
         token,
         name: methodName,
-        verifyBeneficiaryStake: false,
+        mode: StakeAuthorizationMode.OWNER_AGNOSTIC,
       })
       const spoofedBeneficiary =
         '0x4444444444444444444444444444444444444444' as Address
