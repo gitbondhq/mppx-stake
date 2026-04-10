@@ -56,7 +56,9 @@ describe('client stake', () => {
     const credential =
       Credential.deserialize<StakeCredentialPayload>(serialized)
 
-    expect(credential.payload.type).toBe(StakeAuthorizationMode.BENEFICIARY_BOUND)
+    expect(credential.payload.type).toBe(
+      StakeAuthorizationMode.BENEFICIARY_BOUND,
+    )
     if (credential.payload.type !== StakeAuthorizationMode.BENEFICIARY_BOUND)
       throw new Error(
         'Expected a scope-beneficiary-active payload in this test.',
