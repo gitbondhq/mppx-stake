@@ -239,7 +239,7 @@ const assertRequestMatches = (
   challengeRequest: StakeChallengeRequest,
 ) => {
   if (currentRequest.beneficiary)
-    assertOptionalAddress(
+    assertAddress(
       'beneficiary',
       currentRequest.beneficiary,
       challengeRequest.beneficiary,
@@ -271,17 +271,11 @@ const assertRequestMatches = (
       throw new Error(`Challenge ${label} does not match this route.`)
 }
 
-const assertAddress = (label: string, expected: Address, received: Address) => {
-  if (!isAddressEqual(expected, received))
-    throw new Error(`Challenge ${label} does not match this route.`)
-}
-
-const assertOptionalAddress = (
+const assertAddress = (
   label: string,
-  expected: Address | undefined,
+  expected: Address,
   received: Address | undefined,
 ) => {
-  if (!expected && !received) return
-  if (!expected || !received || !isAddressEqual(expected, received))
+  if (!received || !isAddressEqual(expected, received))
     throw new Error(`Challenge ${label} does not match this route.`)
 }
