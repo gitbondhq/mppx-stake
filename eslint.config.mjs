@@ -16,6 +16,14 @@ export default defineConfig([
       'simple-import-sort': simpleImportSort,
     },
     rules: {
+      'arrow-body-style': ['error', 'as-needed'],
+      curly: ['error', 'multi'],
+      eqeqeq: 'error',
+      'func-style': ['error', 'expression'],
+      'no-else-return': 'error',
+      'object-shorthand': 'error',
+      'prefer-arrow-callback': 'error',
+      'prefer-template': 'error',
       'simple-import-sort/exports': 'error',
       'simple-import-sort/imports': [
         'error',
@@ -30,8 +38,6 @@ export default defineConfig([
           ],
         },
       ],
-      curly: ['error', 'multi'],
-      'func-style': ['error', 'expression'],
     },
   },
 ])

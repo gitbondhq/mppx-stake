@@ -26,9 +26,9 @@ export type StakeClientParameters = {
  * The credential round-trip never touches chain state — the consumer is
  * responsible for having created the escrow before the credential is signed.
  */
-export const createStakeClient = (method: StakeMethod) => {
-  return (parameters: StakeClientParameters) => {
-    return Method.toClient(method, {
+export const createStakeClient =
+  (method: StakeMethod) => (parameters: StakeClientParameters) =>
+    Method.toClient(method, {
       async createCredential({ challenge }) {
         const request = brandStakeRequest(challenge.request)
         const chainId = request.methodDetails.chainId
@@ -80,5 +80,3 @@ export const createStakeClient = (method: StakeMethod) => {
         })
       },
     })
-  }
-}

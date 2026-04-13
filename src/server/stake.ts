@@ -60,8 +60,8 @@ export type StakeServerParameters = {
  * Turns the shared stake schema into a server method that issues stake
  * challenges and verifies scope-active proofs against on-chain state.
  */
-export const createStakeServer = (method: StakeMethod) => {
-  return (parameters: StakeServerParameters) => {
+export const createStakeServer =
+  (method: StakeMethod) => (parameters: StakeServerParameters) => {
     const { chainId, consumeChallenge, rpcUrl } = parameters
     const mode = parameters.mode ?? StakeAuthorizationMode.BENEFICIARY_BOUND
 
@@ -147,7 +147,6 @@ export const createStakeServer = (method: StakeMethod) => {
       },
     })
   }
-}
 
 const resolveVerifiedBeneficiary = async ({
   challengeChainId,
