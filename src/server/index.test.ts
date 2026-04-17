@@ -189,6 +189,12 @@ const makeIssuedCredential = async (parameters?: {
 }
 
 describe('server stake', () => {
+  beforeEach(() => {
+    // Silence the consumeChallenge-not-configured warning that
+    // serverStake() emits at construction.
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
   it('exposes the stake method with the configured name', () => {
     const method = serverStake({ chainId, contract, token })
     expect(method.name).toBe(methodName)

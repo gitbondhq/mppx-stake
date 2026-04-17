@@ -83,6 +83,11 @@ export const createStakeServer =
     const assertEscrowActive =
       parameters.assertEscrowActive ?? assertEscrowOnChain
 
+    if (!consumeChallenge)
+      console.warn(
+        '[mppx-stake] consumeChallenge is not configured; stake credentials can be replayed within their expires window. Wire up a TTL store before going to production.',
+      )
+
     return Method.toServer(method, {
       defaults: {
         contract: parameters.contract,
