@@ -115,7 +115,7 @@ The server supports two authorization modes via the `mode` parameter
 | `token`            | `Address`                | no       | Default ERC-20 token.                                                                        |
 | `mode`             | `StakeAuthorizationMode` | no       | Defaults to `BENEFICIARY_BOUND`; set to `OWNER_AGNOSTIC` with a custom `assertEscrowActive`. |
 | `description`      | `string`                 | no       | Shown to the client in the challenge UI.                                                     |
-| `consumeChallenge` | `(id) => Promise<void>`  | no       | Replay-protection hook — see below. Stateless by default.                                    |
+| `consumeChallenge` | `({id, expires}) => Promise<void>` | no | Replay-protection hook — see below. Stateless by default.                                    |
 
 `contract`, `counterparty`, and `token` are **defaults** — they can be
 overridden per-route. Anything you don't set in the configuration must be
@@ -136,12 +136,19 @@ await redis.connect()
 serverStake({
   chainId: 42431,
   contract: '0x...',
-  consumeChallenge: async (challengeId) => {
+  consumeChallenge: async ({ id, expires }) => {
+    // TTL covers the full remaining life of the credential, with a
+    // small margin for clock skew. `expires` is guaranteed to be in
+    // the future here — `Expires.assert` already rejected stale ones.
+    const ttlSeconds = Math.max(
+      1,
+      Math.ceil((new Date(expires).getTime() - Date.now()) / 1000) + 30,
+    )
     // Atomic claim — `SET NX` returns null if the key already exists.
     const claimed = await redis.set(
-      `mppx:stake:challenge:${challengeId}`,
+      `mppx:stake:challenge:${id}`,
       '1',
-      { NX: true, EX: 600 }, // 10 min, > the challenge `expires` window
+      { NX: true, EX: ttlSeconds },
     )
     if (!claimed) throw new Error('Challenge already consumed.')
   },

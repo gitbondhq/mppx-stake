@@ -312,10 +312,12 @@ describe('server stake', () => {
 
     it('rejects a replayed credential via consumeChallenge', async () => {
       const consumed = new Set<string>()
-      const consumeChallenge = vi.fn(async (id: string) => {
-        if (consumed.has(id)) throw new Error('Challenge already consumed.')
-        consumed.add(id)
-      })
+      const consumeChallenge = vi.fn(
+        async ({ id }: { id: string; expires: string }) => {
+          if (consumed.has(id)) throw new Error('Challenge already consumed.')
+          consumed.add(id)
+        },
+      )
       const method = serverStake({
         chainId,
         contract,
@@ -330,6 +332,10 @@ describe('server stake', () => {
       ).rejects.toThrow(/already consumed/)
 
       expect(consumeChallenge).toHaveBeenCalledTimes(2)
+      expect(consumeChallenge).toHaveBeenLastCalledWith({
+        id: credential.challenge.id,
+        expires: credential.challenge.expires,
+      })
       expect(mocks.assertEscrowOnChain).toHaveBeenCalledTimes(1)
     })
 

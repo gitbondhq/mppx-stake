@@ -42,18 +42,25 @@ export type StakeServerParameters = {
    */
   assertEscrowActive?: AssertEscrowActive | undefined
   /**
-   * Marks a challenge id as consumed so the credential can't be replayed.
+   * Marks a challenge as consumed so the credential can't be replayed.
    * Called after HMAC + signature recovery succeed, before the on-chain
    * read. Throw to reject a replayed credential.
    *
+   * Receives the challenge id and its `expires` timestamp so the store
+   * can size its TTL precisely (the upstream `Expires.assert` has already
+   * rejected expired credentials, so `expires` is guaranteed in the
+   * future and non-null).
+   *
    * Defaults to a no-op — `verify` is stateless out of the box. Production
    * deployments should plug in a TTL'd store (Redis, Postgres, KV) keyed
-   * on the challenge id, with a TTL slightly longer than the challenge
-   * `expires` window. Use an atomic claim primitive (Redis `SET NX`,
-   * Postgres `INSERT ... ON CONFLICT`, DynamoDB conditional write) so two
+   * on the challenge id, with an entry lifetime of at least `expires`.
+   * Use an atomic claim primitive (Redis `SET NX`, Postgres
+   * `INSERT ... ON CONFLICT`, DynamoDB conditional write) so two
    * concurrent verifies of the same credential can't both succeed.
    */
-  consumeChallenge?: ((challengeId: string) => Promise<void>) | undefined
+  consumeChallenge?:
+    | ((context: { id: string; expires: string }) => Promise<void>)
+    | undefined
 }
 
 /**
@@ -125,7 +132,16 @@ export const createStakeServer =
         // Replay protection runs after we've decided the credential is
         // genuine (HMAC + signature pass) but before the RPC read, so a
         // failed read leaves the slot consumed rather than reusable.
-        if (consumeChallenge) await consumeChallenge(credential.challenge.id)
+        if (consumeChallenge) {
+          if (!credential.challenge.expires)
+            throw new Error(
+              'Stake credential is missing an expires timestamp; refusing to run replay protection.',
+            )
+          await consumeChallenge({
+            id: credential.challenge.id,
+            expires: credential.challenge.expires,
+          })
+        }
 
         const client = createEvmClient(challengeChainId, rpcUrl)
         await assertEscrowActive(client, challengeRequest.contract, {
