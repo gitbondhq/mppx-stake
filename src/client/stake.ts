@@ -27,7 +27,8 @@ export type StakeClientParameters = {
  * responsible for having created the escrow before the credential is signed.
  */
 export const createStakeClient =
-  (method: StakeMethod) => (parameters: StakeClientParameters) =>
+  (method: StakeMethod) =>
+  (parameters: StakeClientParameters = {}) =>
     Method.toClient(method, {
       async createCredential({ challenge }) {
         const request = brandStakeRequest(challenge.request)

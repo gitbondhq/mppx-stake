@@ -6,9 +6,9 @@ import { createStakeClient, type StakeClientParameters } from './stake.js'
 export type { StakeClientParameters } from './stake.js'
 
 type ClientStakeFactory = (
-  parameters: StakeClientParameters,
+  parameters?: StakeClientParameters,
 ) => ReturnType<ReturnType<typeof createStakeClient>>
 
 /** Client-side `stake` method implementation used to create credentials. */
-export const clientStake: ClientStakeFactory = parameters =>
+export const clientStake: ClientStakeFactory = (parameters = {}) =>
   createStakeClient(createStakeMethod())(parameters)
