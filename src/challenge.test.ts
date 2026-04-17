@@ -1,12 +1,11 @@
-import { Challenge } from 'mppx'
+import { Challenge, Method } from 'mppx'
 import { describe, expect, it } from 'vitest'
 
 import type { StakeChallenge } from './challenge.js'
 import { parseStakeChallenge } from './challenge.js'
 import { createStakeMethod, StakeAuthorizationMode } from './method.js'
 
-const methodName = 'tempo'
-const stakeMethod = createStakeMethod({ name: methodName })
+const stakeMethod = createStakeMethod()
 
 const request = {
   amount: '5000000',
@@ -33,11 +32,7 @@ describe('stake challenge helpers', () => {
       request,
     }) as StakeChallenge
 
-    expect(
-      parseStakeChallenge(original, {
-        methodName,
-      }),
-    ).toEqual(original)
+    expect(parseStakeChallenge(original)).toEqual(original)
   })
 
   it('parses a 402 response carrying a stake challenge', () => {
@@ -53,25 +48,23 @@ describe('stake challenge helpers', () => {
       status: 402,
     })
 
-    expect(
-      parseStakeChallenge(response, {
-        methodName,
-      }),
-    ).toEqual(original)
+    expect(parseStakeChallenge(response)).toEqual(original)
   })
 
   it('rejects a challenge whose method does not match', () => {
-    const original = Challenge.fromMethod(
-      createStakeMethod({ name: 'other' }),
-      {
-        id: 'challenge-3',
-        realm: 'api.example.com',
-        request,
-      },
-    ) as StakeChallenge
+    const otherMethod = Method.from({
+      name: 'other',
+      intent: 'stake',
+      schema: stakeMethod.schema,
+    })
+    const original = Challenge.fromMethod(otherMethod, {
+      id: 'challenge-3',
+      realm: 'api.example.com',
+      request,
+    }) as StakeChallenge
 
-    expect(() => parseStakeChallenge(original, { methodName })).toThrow(
-      /Expected a tempo\/stake challenge/,
+    expect(() => parseStakeChallenge(original)).toThrow(
+      /Expected a evm\/stake challenge/,
     )
   })
 })

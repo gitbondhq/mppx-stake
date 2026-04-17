@@ -24,7 +24,7 @@ const request = {
   },
 } as const
 
-const stakeMethod = createStakeMethod({ name: 'tempo' })
+const stakeMethod = createStakeMethod()
 
 describe('stake method schema', () => {
   it('parses a valid request', () => {

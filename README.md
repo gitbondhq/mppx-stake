@@ -66,7 +66,6 @@ import { keccak256, toHex } from 'viem'
 const mppx = Mppx.create({
   methods: [
     serverStake({
-      name: 'tempo',
       chainId: 42431, // tempoModerato
       contract: '0xe1c4d3dce17bc111181ddf716f75bae49e61a336',
       counterparty: '0x2222222222222222222222222222222222222222',
@@ -109,7 +108,6 @@ The server supports two authorization modes via the `mode` parameter
 
 | Parameter          | Type                     | Required | Notes                                                                                        |
 | ------------------ | ------------------------ | -------- | -------------------------------------------------------------------------------------------- |
-| `name`             | `string`                 | yes      | Method name shared with the client (e.g. `'tempo'`).                                         |
 | `chainId`          | `number`                 | yes      | Must be in [`supportedChains`](#chains).                                                     |
 | `rpcUrl`           | `string`                 | no       | Override viem's default public RPC (use a paid endpoint).                                    |
 | `contract`         | `Address`                | no       | Default escrow contract for this route.                                                      |
@@ -136,7 +134,6 @@ const redis = createClient({ url: process.env.REDIS_URL })
 await redis.connect()
 
 serverStake({
-  name: 'tempo',
   chainId: 42431,
   contract: '0x...',
   consumeChallenge: async (challengeId) => {
@@ -177,7 +174,7 @@ const beneficiaryAccount = privateKeyToAccount(
 )
 
 const mppx = Mppx.create({
-  methods: [clientStake({ name: 'tempo', beneficiaryAccount })],
+  methods: [clientStake({ beneficiaryAccount })],
 })
 
 // `mppx.fetch` follows the 402 → credential → retry flow automatically.
@@ -230,7 +227,7 @@ identifier (PR number, document ID, session key, etc.).
 ```ts
 import { parseStakeChallenge } from '@gitbondhq/mppx-stake'
 
-const challenge = parseStakeChallenge(response, { methodName: 'tempo' })
+const challenge = parseStakeChallenge(response)
 // challenge.request.scope, challenge.request.amount, ...
 ```
 

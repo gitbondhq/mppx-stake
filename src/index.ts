@@ -5,5 +5,4 @@ export {
   StakeAuthorizationMode,
   type StakeChallengeRequest,
   type StakeCredentialPayload,
-  type StakeMethodParameters,
 } from './method.js'

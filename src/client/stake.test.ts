@@ -16,8 +16,7 @@ const beneficiaryAccount = privateKeyToAccount(
 const otherAccount = privateKeyToAccount(
   '0x8b3a350cf5c34c9194ca85829b4b6fd2e8f5f10f1f49ffb3874c7f5f7b6b2d44',
 )
-const methodName = 'tempo'
-const stakeMethod = createStakeMethod({ name: methodName })
+const stakeMethod = createStakeMethod()
 
 const baseRequest = {
   amount: '5000000',

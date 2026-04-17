@@ -95,17 +95,13 @@ const stakeCredentialPayloadSchema = z.discriminatedUnion('type', [
 
 // ── Method factory ───────────────────────────────────────────────────────
 
-export type StakeMethodParameters = {
-  name: string
-}
-
 /**
- * Shared `name/stake` method schema used by both the client and server
+ * Shared `evm/stake` method schema used by both the client and server
  * adapters in this package.
  */
-export const createStakeMethod = ({ name }: StakeMethodParameters) =>
+export const createStakeMethod = () =>
   Method.from({
-    name,
+    name: 'evm',
     intent: 'stake',
     schema: {
       credential: { payload: stakeCredentialPayloadSchema },
@@ -120,7 +116,7 @@ export const createStakeMethod = ({ name }: StakeMethodParameters) =>
  * literal that downstream `Challenge`/`Credential` generics depend on.
  */
 export type StakeMethod = {
-  name: string
+  name: 'evm'
   intent: 'stake'
   schema: {
     credential: { payload: typeof stakeCredentialPayloadSchema }

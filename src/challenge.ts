@@ -8,15 +8,10 @@ export type StakeChallenge = Challenge.Challenge<
   string
 >
 
-type ParseStakeChallengeOptions = {
-  methodName: string
-}
-
 export const parseStakeChallenge = (
   value: Response | unknown,
-  options: ParseStakeChallengeOptions,
 ): StakeChallenge => {
-  const method = createStakeMethod({ name: options.methodName })
+  const method = createStakeMethod()
 
   if (value instanceof Response)
     return Challenge.fromResponse(value, {
