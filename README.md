@@ -106,16 +106,16 @@ The server supports two authorization modes via the `mode` parameter
 
 ### Server parameters
 
-| Parameter          | Type                     | Required | Notes                                                                                        |
-| ------------------ | ------------------------ | -------- | -------------------------------------------------------------------------------------------- |
-| `chainId`          | `number`                 | yes      | Must be in [`supportedChains`](#chains).                                                     |
-| `rpcUrl`           | `string`                 | no       | Override viem's default public RPC (use a paid endpoint).                                    |
-| `contract`         | `Address`                | no       | Default escrow contract for this route.                                                      |
-| `counterparty`     | `Address`                | no       | Default counterparty.                                                                        |
-| `token`            | `Address`                | no       | Default ERC-20 token.                                                                        |
-| `mode`             | `StakeAuthorizationMode` | no       | Defaults to `BENEFICIARY_BOUND`; set to `OWNER_AGNOSTIC` with a custom `assertEscrowActive`. |
-| `description`      | `string`                 | no       | Shown to the client in the challenge UI.                                                     |
-| `consumeChallenge` | `({id, expires}) => Promise<void>` | no | Replay-protection hook — see below. Stateless by default.                                    |
+| Parameter          | Type                               | Required | Notes                                                                                        |
+| ------------------ | ---------------------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `chainId`          | `number`                           | yes      | Must be in [`supportedChains`](#chains).                                                     |
+| `rpcUrl`           | `string`                           | no       | Override viem's default public RPC (use a paid endpoint).                                    |
+| `contract`         | `Address`                          | no       | Default escrow contract for this route.                                                      |
+| `counterparty`     | `Address`                          | no       | Default counterparty.                                                                        |
+| `token`            | `Address`                          | no       | Default ERC-20 token.                                                                        |
+| `mode`             | `StakeAuthorizationMode`           | no       | Defaults to `BENEFICIARY_BOUND`; set to `OWNER_AGNOSTIC` with a custom `assertEscrowActive`. |
+| `description`      | `string`                           | no       | Shown to the client in the challenge UI.                                                     |
+| `consumeChallenge` | `({id, expires}) => Promise<void>` | no       | Replay-protection hook — see below. Stateless by default.                                    |
 
 `contract`, `counterparty`, and `token` are **defaults** — they can be
 overridden per-route. Anything you don't set in the configuration must be
@@ -145,11 +145,10 @@ serverStake({
       Math.ceil((new Date(expires).getTime() - Date.now()) / 1000) + 30,
     )
     // Atomic claim — `SET NX` returns null if the key already exists.
-    const claimed = await redis.set(
-      `mppx:stake:challenge:${id}`,
-      '1',
-      { NX: true, EX: ttlSeconds },
-    )
+    const claimed = await redis.set(`mppx:stake:challenge:${id}`, '1', {
+      NX: true,
+      EX: ttlSeconds,
+    })
     if (!claimed) throw new Error('Challenge already consumed.')
   },
 })
@@ -202,17 +201,17 @@ The challenge request shape both sides agree on:
 
 ```ts
 type StakeChallengeRequest = {
-  amount: string                       // base-unit integer string
-  beneficiary?: Address                // defaults to the credential signer
-  contract: Address                    // escrow contract
-  counterparty: Address                // the other party
+  amount: string // base-unit integer string
+  beneficiary?: Address // defaults to the credential signer
+  contract: Address // escrow contract
+  counterparty: Address // the other party
   description?: string
-  externalId?: string                  // application-side identifier
-  mode: StakeAuthorizationMode         // 'scope-beneficiary-active' | 'scope-active'
-  policy?: string                      // application-side policy tag
-  resource?: string                    // application-side resource tag
-  scope: Hex                           // bytes32, the per-resource identifier
-  token: Address                       // ERC-20 token address
+  externalId?: string // application-side identifier
+  mode: StakeAuthorizationMode // 'scope-beneficiary-active' | 'scope-active'
+  policy?: string // application-side policy tag
+  resource?: string // application-side resource tag
+  scope: Hex // bytes32, the per-resource identifier
+  token: Address // ERC-20 token address
   methodDetails: { chainId: number }
 }
 ```
@@ -221,8 +220,8 @@ The credential payload is a discriminated union based on `mode`:
 
 ```ts
 type StakeCredentialPayload =
-  | { signature: Hex; type: 'scope-beneficiary-active' }  // BENEFICIARY_BOUND
-  | { type: 'scope-active' }                              // OWNER_AGNOSTIC
+  | { signature: Hex; type: 'scope-beneficiary-active' } // BENEFICIARY_BOUND
+  | { type: 'scope-active' } // OWNER_AGNOSTIC
 ```
 
 The `scope` is whatever bytes32 your application uses to uniquely identify
@@ -281,9 +280,9 @@ full wire compatibility depends on the peer understanding that request field.
 
 ## Subpath exports
 
-| Entry                            | Use                                                              |
-| -------------------------------- | ---------------------------------------------------------------- |
-| `@gitbondhq/mppx-stake`          | Schema, types, chain helpers, challenge parser.                  |
-| `@gitbondhq/mppx-stake/client`   | `clientStake()` — configures a client method that signs proofs.  |
-| `@gitbondhq/mppx-stake/server`   | `serverStake()` — configures a server method that verifies them. |
-| `@gitbondhq/mppx-stake/abi`      | `escrowAbi`.                                                     |
+| Entry                          | Use                                                              |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `@gitbondhq/mppx-stake`        | Schema, types, chain helpers, challenge parser.                  |
+| `@gitbondhq/mppx-stake/client` | `clientStake()` — configures a client method that signs proofs.  |
+| `@gitbondhq/mppx-stake/server` | `serverStake()` — configures a server method that verifies them. |
+| `@gitbondhq/mppx-stake/abi`    | `escrowAbi`.                                                     |
